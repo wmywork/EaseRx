@@ -3,6 +3,7 @@ mod state_store;
 mod execution_result;
 mod stream_ext;
 pub mod macros;
+pub mod mock;
 
 pub use async_state::*;
 pub use state_store::*;
