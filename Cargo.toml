@@ -10,3 +10,13 @@ default-members = [
 members = [
     "easerx",
 ]
+
+[workspace.dependencies]
+tokio = "1.45.0"
+tokio-util = "0.7.0"
+futures = "0.3.0"
+futures-signals = "0.3.0"
+futures-core = "0.3.31"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+chrono = "0.4.41"

@@ -4,3 +4,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 # list all commands
 default:
   @just --list --unsorted
+
+test:
+    cargo test -p easerx
+
