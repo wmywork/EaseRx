@@ -1,0 +1,12 @@
+[workspace.lints.rust]
+unsafe_code = "forbid"
+# unused = "allow" # For experimental dev.
+
+[workspace]
+resolver = "2"
+default-members = [
+
+]
+members = [
+    "easerx",
+]
