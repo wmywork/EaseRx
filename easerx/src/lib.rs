@@ -12,3 +12,6 @@ pub use stream_ext::*;
 
 
 pub trait State: Clone + Send + Sync + 'static {}
+
+#[cfg(test)]
+mod tests;
