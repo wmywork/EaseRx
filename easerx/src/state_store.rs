@@ -25,7 +25,7 @@ impl<S: State> StateStore<S> {
         tokio::spawn(async move {
             Self::process_queue(state_clone, set_state_rx, with_state_rx).await;
         });
-        
+
         StateStore {
             state,
             set_state_tx,
@@ -113,23 +113,30 @@ impl<S: State> StateStore<S> {
         G: FnOnce(&S) -> &Async<T> + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
-
-        if let Some(getter) = state_getter.clone() {
-            let state_updater_clone = state_updater.clone();
-            let _ = self.set_state_tx.send(Box::new(move |old_state| {
-                let previous_value = Option::from(getter(&old_state));
-                state_updater_clone(old_state, Async::Loading(previous_value))
-            }));
-        } else {
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
-        }
+        let set_state_tx_retained = self.set_state_tx.clone();
 
         tokio::spawn(async move {
+            if let Some(getter) = state_getter.clone() {
+                let state_updater_clone = state_updater.clone();
+                let _ = set_state_tx_retained.send(Box::new(move |old_state| {
+                    let previous_result = getter(&old_state);
+                    let retained_value = previous_result.value_ref_clone();
+                    state_updater_clone(old_state, Async::Loading(retained_value))
+                }));
+            } else {
+                Self::update_async_state(
+                    &set_state_tx,
+                    state_updater.clone(),
+                    Async::Loading(None),
+                );
+            }
+            tokio::task::yield_now().await;
             let async_result = if let Some(token) = cancellation_token {
                 let token_clone = token.clone();
                 tokio::select! {
-                    result = computation => result.into_async(),
+                    biased;
                     _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
+                    result = computation => result.into_async(),
                 }
             } else {
                 computation.await.into_async()
@@ -160,21 +167,28 @@ impl<S: State> StateStore<S> {
         G: FnOnce(&S) -> &Async<T> + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
-
-        if let Some(getter) = state_getter.clone() {
-            let state_updater_clone = state_updater.clone();
-            let _ = self.set_state_tx.send(Box::new(move |old_state| {
-                let previous_value = Option::from(getter(&old_state));
-                state_updater_clone(old_state, Async::Loading(previous_value))
-            }));
-        } else {
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
-        }
-
+        let set_state_tx_retained = self.set_state_tx.clone();
         tokio::spawn(async move {
+            if let Some(getter) = state_getter.clone() {
+                let state_updater_clone = state_updater.clone();
+                let _ = set_state_tx_retained.send(Box::new(move |old_state| {
+                    let previous_result = getter(&old_state);
+                    let retained_value = previous_result.value_ref_clone();
+                    state_updater_clone(old_state, Async::Loading(retained_value))
+                }));
+            } else {
+                Self::update_async_state(
+                    &set_state_tx,
+                    state_updater.clone(),
+                    Async::Loading(None),
+                );
+            }
+            tokio::task::yield_now().await;
             let async_result = if let Some(token) = cancellation_token {
                 let token_clone = token.clone();
                 tokio::select! {
+                    biased;
+                    _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
                     result = tokio::task::spawn_blocking({
                         let token = token.clone();
                         move || computation(Some(token))
@@ -184,7 +198,6 @@ impl<S: State> StateStore<S> {
                             Err(e) => Async::fail_with_message(e.to_string(), None),
                         }
                     },
-                    _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
                 }
             } else {
                 match tokio::task::spawn_blocking(move || computation(None)).await {

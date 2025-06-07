@@ -1,4 +1,175 @@
-use crate::{Async, AsyncError, ExecutionResult};
+use crate::{Async, AsyncError};
+
+#[test]
+fn test_uninitialized() {
+    let uninitialized: Async<i32> = Async::default();
+    assert!(!uninitialized.is_complete());
+    assert!(uninitialized.should_load());
+    assert!(uninitialized.is_incomplete());
+    assert!(uninitialized.is_uninitialized());
+    assert!(!uninitialized.is_loading());
+    assert!(!uninitialized.is_success());
+    assert!(!uninitialized.is_fail());
+    assert!(!uninitialized.is_fail_with_timeout());
+    assert!(!uninitialized.is_fail_with_none());
+    assert!(!uninitialized.is_fail_with_error());
+    assert!(!uninitialized.is_fail_with_canceled());
+    assert!(uninitialized.value_ref().is_none());
+    assert!(uninitialized.value().is_none());
+}
+
+#[test]
+fn test_loading() {
+    let loading = Async::loading(Some(7));
+    assert!(!loading.is_complete());
+    assert!(!loading.should_load());
+    assert!(loading.is_incomplete());
+    assert!(!loading.is_uninitialized());
+    assert!(loading.is_loading());
+    assert!(!loading.is_success());
+    assert!(!loading.is_fail());
+    assert!(!loading.is_fail_with_timeout());
+    assert!(!loading.is_fail_with_none());
+    assert!(!loading.is_fail_with_error());
+    assert!(!loading.is_fail_with_canceled());
+    assert!(loading.value_ref().is_some());
+    assert_eq!(loading.value_ref(), Some(7).as_ref());
+    assert_eq!(loading.value(), Some(7));
+
+    let loading = Async::loading(None::<i32>);
+    assert!(loading.value_ref().is_none());
+    assert_eq!(loading.value_ref(), None);
+    assert_eq!(loading.value(), None);
+}
+
+#[test]
+fn test_success() {
+    let success = Async::success(8);
+    assert!(success.is_complete());
+    assert!(!success.should_load());
+    assert!(!success.is_incomplete());
+    assert!(!success.is_uninitialized());
+    assert!(!success.is_loading());
+    assert!(success.is_success());
+    assert!(!success.is_fail());
+    assert!(!success.is_fail_with_timeout());
+    assert!(!success.is_fail_with_none());
+    assert!(!success.is_fail_with_error());
+    assert!(!success.is_fail_with_canceled());
+    assert!(success.value_ref().is_some());
+    assert_eq!(success.value_ref(), Some(&8));
+    assert_eq!(success.value(), Some(8));
+}
+
+#[test]
+fn test_fail() {
+    let fail = Async::fail(AsyncError::Error("Connection failed".to_string()), Some(50));
+    assert!(fail.is_complete());
+    assert!(fail.should_load());
+    assert!(!fail.is_incomplete());
+    assert!(!fail.is_uninitialized());
+    assert!(!fail.is_loading());
+    assert!(!fail.is_success());
+    assert!(fail.is_fail());
+    assert!(fail.value_ref().is_some());
+    assert_eq!(fail.value_ref(), Some(&50));
+    assert_eq!(fail.value(), Some(50));
+}
+
+// Test factory methods
+#[test]
+fn test_fail_factory_methods() {
+
+    // Test fail_with_error
+    let fail = Async::fail_with_none(None::<i32>);
+    match fail {
+        Async::Fail { error, value } => {
+            assert!(matches!(error, AsyncError::None));
+            assert!(value.is_none());
+        }
+        _ => panic!("Expected Async::Fail with None error"),
+    }
+    // Test fail_with_cancelled
+    let fail = Async::<i32>::fail_with_cancelled(Some(42));
+    match fail {
+        Async::Fail { error, value } => {
+            assert!(matches!(error, AsyncError::Cancelled));
+            assert_eq!(value, Some(42));
+        }
+        _ => panic!("Expected Async::Fail with Cancelled error"),
+    }
+
+    // Test fail_with_timeout
+    let fail = Async::<i32>::fail_with_timeout(Some(42));
+    match fail {
+        Async::Fail { error, value } => {
+            assert!(matches!(error, AsyncError::Timeout));
+            assert_eq!(value, Some(42));
+        }
+        _ => panic!("Expected Async::Fail with Timeout error"),
+    }
+
+    // Test fail_with_message
+    let fail = Async::<i32>::fail_with_message("custom error", Some(42));
+    match fail {
+        Async::Fail { error, value } => {
+            assert!(matches!(error, AsyncError::Error(msg) if msg == "custom error"));
+            assert_eq!(value, Some(42));
+        }
+        _ => panic!("Expected Async::Fail with Error"),
+    }
+}
+
+// Test error state helpers
+#[test]
+fn test_error_state_helpers() {
+    // Test is_fail_with_error
+    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    assert!(fail.is_fail_with_error());
+
+    let fail = Async::fail(AsyncError::None, None::<i32>);
+    assert!(!fail.is_fail_with_error());
+
+    // Test is_fail_with_none
+    let fail = Async::fail(AsyncError::None, None::<i32>);
+    assert!(fail.is_fail_with_none());
+
+    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    assert!(!fail.is_fail_with_none());
+
+    // Test is_fail_with_canceled
+    let fail = Async::fail(AsyncError::Cancelled, None::<i32>);
+    assert!(fail.is_fail_with_canceled());
+
+    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    assert!(!fail.is_fail_with_canceled());
+
+    // Test is_fail_with_timeout
+    let fail = Async::fail(AsyncError::Timeout, None::<i32>);
+    assert!(fail.is_fail_with_timeout());
+
+    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    assert!(!fail.is_fail_with_timeout());
+}
+
+// Test AsyncError methods
+#[test]
+fn test_async_error_methods() {
+    let none_error = AsyncError::None;
+    assert!(none_error.is_none());
+    assert!(!none_error.is_error());
+    assert!(!none_error.is_cancelled());
+
+    let error = AsyncError::Error("message".to_string());
+    assert!(!error.is_none());
+    assert!(error.is_error());
+    assert!(!error.is_cancelled());
+
+    let cancelled = AsyncError::Cancelled;
+    assert!(!cancelled.is_none());
+    assert!(!cancelled.is_error());
+    assert!(cancelled.is_cancelled());
+}
 
 // Test success_or_fail_with_retain functionality
 #[test]
@@ -33,16 +204,16 @@ fn test_success_or_fail_with_retain() {
 
 // Test from trait implementation for Result
 #[test]
-fn test_from_result() {
+fn test_async_from_result() {
     // Test with Result::Ok
     let result: Result<i32, &str> = Ok(42);
-    let async_result: Async<i32> = result.into();
+    let async_result: Async<i32> = Async::from(result);
 
     assert!(matches!(async_result, Async::Success { value: 42 }));
 
     // Test with Result::Err
     let result: Result<i32, &str> = Err("error");
-    let async_result: Async<i32> = result.into();
+    let async_result: Async<i32> = Async::from(result);
 
     match async_result {
         Async::Fail { error, value } => {
@@ -53,116 +224,60 @@ fn test_from_result() {
     }
 }
 
+// Test from trait implementation for Option
+#[test]
+fn test_async_from_option() {
+    // Test with Option::Some
+    let result: Option<i32> = Some(8);
+    let async_result: Async<i32> = Async::from(result);
+    assert!(matches!(async_result, Async::Success { value: 8 }));
+    assert!(async_result.is_success());
+
+    // Test with Option::None
+    let result: Option<i32> = None;
+    let async_result: Async<i32> = Async::from(result);
+    assert!(matches!(
+        async_result,
+        Async::Fail {
+            error: AsyncError::None,
+            value: None,
+        }
+    ));
+    assert!(async_result.is_fail_with_none());
+}
+
 // Test From trait implementation for &Async<T>
 #[test]
-fn test_from_async_ref() {
+fn test_retained_value_clone_from_async_ref() {
     // Test with Success
     let success = Async::success(42);
-    let option: Option<i32> = (&success).into();
+    let option: Option<i32> = (&success).value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Loading
     let loading = Async::loading(Some(42));
-    let option: Option<i32> = (&loading).into();
+    let option: Option<i32> = (&loading).value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Loading (None)
     let loading = Async::loading(None::<i32>);
-    let option: Option<i32> = (&loading).into();
+    let option: Option<i32> = (&loading).value_ref_clone();
     assert_eq!(option, None);
 
     // Test with Fail (with value)
     let fail = Async::fail(AsyncError::Error("error".to_string()), Some(42));
-    let option: Option<i32> = (&fail).into();
+    let option: Option<i32> = (&fail).value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Fail (without value)
     let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
-    let option: Option<i32> = (&fail).into();
+    let option: Option<i32> = (&fail).value_ref_clone();
     assert_eq!(option, None);
 
     // Test with Uninitialized
     let uninitialized = Async::<i32>::Uninitialized;
-    let option: Option<i32> = (&uninitialized).into();
+    let option: Option<i32> = (&uninitialized).value_ref_clone();
     assert_eq!(option, None);
-}
-
-// Test error state helpers
-#[test]
-fn test_error_state_helpers() {
-    // Test is_fail_with_error
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
-    assert!(fail.is_fail_with_error());
-
-    let fail = Async::fail(AsyncError::None, None::<i32>);
-    assert!(!fail.is_fail_with_error());
-
-    // Test is_fail_with_none
-    let fail = Async::fail(AsyncError::None, None::<i32>);
-    assert!(fail.is_fail_with_none());
-
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
-    assert!(!fail.is_fail_with_none());
-
-    // Test is_fail_with_canceled
-    let fail = Async::fail(AsyncError::Cancelled, None::<i32>);
-    assert!(fail.is_fail_with_canceled());
-
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
-    assert!(!fail.is_fail_with_canceled());
-}
-
-// Test factory methods
-#[test]
-fn test_factory_methods() {
-    // Test fail_with_cancelled
-    let fail = Async::<i32>::fail_with_cancelled(Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Cancelled));
-            assert_eq!(value, Some(42));
-        }
-        _ => panic!("Expected Async::Fail with Cancelled error"),
-    }
-
-    // Test fail_with_timeout
-    let fail = Async::<i32>::fail_with_timeout(Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Timeout));
-            assert_eq!(value, Some(42));
-        }
-        _ => panic!("Expected Async::Fail with Timeout error"),
-    }
-
-    // Test fail_with_message
-    let fail = Async::<i32>::fail_with_message("custom error", Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Error(msg) if msg == "custom error"));
-            assert_eq!(value, Some(42));
-        }
-        _ => panic!("Expected Async::Fail with Error"),
-    }
-}
-
-// Test AsyncError methods
-#[test]
-fn test_async_error_methods() {
-    let none_error = AsyncError::None;
-    assert!(none_error.is_none());
-    assert!(!none_error.is_error());
-    assert!(!none_error.is_cancelled());
-
-    let error = AsyncError::Error("message".to_string());
-    assert!(!error.is_none());
-    assert!(error.is_error());
-    assert!(!error.is_cancelled());
-
-    let cancelled = AsyncError::Cancelled;
-    assert!(!cancelled.is_none());
-    assert!(!cancelled.is_error());
-    assert!(cancelled.is_cancelled());
 }
 
 // Test complex state transitions
@@ -196,7 +311,7 @@ fn test_complex_state_transitions() {
         name: "John Doe".to_string(),
     };
     state = Async::success(updated_user.clone());
-    assert!(state.complete());
+    assert!(state.is_complete());
     assert!(!state.should_load());
     assert!(!state.is_incomplete());
     assert_eq!(state.value_ref(), Some(&updated_user));
@@ -206,7 +321,7 @@ fn test_complex_state_transitions() {
         AsyncError::Error("Update failed".to_string()),
         Some(updated_user.clone()),
     );
-    assert!(state.complete());
+    assert!(state.is_complete());
     assert!(state.should_load());
     assert!(!state.is_incomplete());
     assert_eq!(state.value_ref(), Some(&updated_user));

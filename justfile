@@ -8,3 +8,8 @@ default:
 test:
     cargo test -p easerx
 
+test-output:
+    cargo test -p easerx -- --show-output
+
+test-single-thread:
+    cargo test -p easerx -- --test-threads=1

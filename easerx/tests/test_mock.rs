@@ -1,6 +1,6 @@
-use std::time::Duration;
+use easerx::mock::{MockStateStore, assert, event_stream};
 use easerx::{Async, AsyncError, State};
-use easerx::mock::{MockStateStore, assert, network::MockHttpResponse, event_stream};
+use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
@@ -159,7 +159,9 @@ async fn test_conditional_mock_result() {
             let current = counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             current >= 2 // 第三次调用时才满足条件
         },
-        Async::Success { value: "条件满足".to_string() },
+        Async::Success {
+            value: "条件满足".to_string(),
+        },
     );
 
     // 第一次执行，条件不满足
@@ -202,9 +204,16 @@ async fn test_mock_sequence_results() {
 
     // 预设序列响应
     mock_store.mock_sequence_results(vec![
-        Async::Success { value: "第一个结果".to_string() },
-        Async::Success { value: "第二个结果".to_string() },
-        Async::Fail { error: AsyncError::Error("预设错误".to_string()), value: None },
+        Async::Success {
+            value: "第一个结果".to_string(),
+        },
+        Async::Success {
+            value: "第二个结果".to_string(),
+        },
+        Async::Fail {
+            error: AsyncError::Error("预设错误".to_string()),
+            value: None,
+        },
     ]);
 
     // 第一次执行
@@ -233,9 +242,9 @@ async fn test_mock_sequence_results() {
     mock_store
         .execute::<String, _>(|state, result| TestState {
             data: result.value(),
-            status: Async::Fail { 
-                error: AsyncError::Error("预设错误".to_string()), 
-                value: None 
+            status: Async::Fail {
+                error: AsyncError::Error("预设错误".to_string()),
+                value: None,
             },
             ..state
         })
@@ -289,7 +298,10 @@ async fn test_mock_http_client() {
     assert_eq!(response.status, 500);
 
     // 测试未预设的URL
-    let error = client.get("https://api.example.com/unknown").await.unwrap_err();
+    let error = client
+        .get("https://api.example.com/unknown")
+        .await
+        .unwrap_err();
     assert!(error.contains("没有为URL"));
 }
 
@@ -298,8 +310,12 @@ async fn test_multiple_mock_results() {
     let mock_store = MockStateStore::new(TestState::default());
 
     // 预设多个结果
-    mock_store.mock_result(Async::Success { value: "结果1".to_string() });
-    mock_store.mock_result(Async::Success { value: "结果2".to_string() });
+    mock_store.mock_result(Async::Success {
+        value: "结果1".to_string(),
+    });
+    mock_store.mock_result(Async::Success {
+        value: "结果2".to_string(),
+    });
 
     // 第一次执行
     mock_store
@@ -398,10 +414,7 @@ async fn test_mock_http_client_enhanced() {
         .await
         .unwrap();
     assert_eq!(response.status, 201);
-    assert_eq!(
-        response.headers.get("Content-Type").unwrap(),
-        "text/plain"
-    );
+    assert_eq!(response.headers.get("Content-Type").unwrap(), "text/plain");
 
     // 测试请求历史
     assert::assert_requested_url(&client, "https://api.example.com/data");
@@ -415,7 +428,7 @@ async fn test_mock_event_stream() {
     // 创建模拟事件流并添加事件
     let stream = event_stream::MockEventStream::<i32>::new();
     stream.add_events(vec![1, 2, 3, 4, 5]);
-    
+
     // 由于Stream实现比较复杂，这里我们只测试添加事件的功能
     // 实际应用中通常会配合其他异步机制使用
 }
@@ -429,7 +442,7 @@ async fn test_mock_delayed_event_stream() {
         (2, Duration::from_millis(20)),
         (3, Duration::from_millis(30)),
     ]);
-    
+
     // 由于Stream实现比较复杂，这里我们只测试添加延迟事件的功能
     // 实际应用中通常会配合其他异步机制使用
 }
@@ -448,21 +461,23 @@ async fn test_assert_helpers() {
         data: Some("测试数据".to_string()),
         status: Async::Success { value: true },
     };
-    
+
     mock_store.set_state(|_| updated_state.clone());
 
     // 测试状态历史断言
     assert::assert_state_history_contains(&mock_store, updated_state.clone());
-    
+
     // 测试状态转换断言
     assert::assert_state_transition(&mock_store, initial_state, updated_state);
-    
+
     // 测试执行结果断言
     mock_store.mock_result(Async::Success { value: true });
-    mock_store.execute::<bool, _>(|state, result| {
-        assert_eq!(result, Async::Success { value: true });
-        state
-    }).await;
-    
+    mock_store
+        .execute::<bool, _>(|state, result| {
+            assert_eq!(result, Async::Success { value: true });
+            state
+        })
+        .await;
+
     assert::assert_execution_result(&mock_store, Async::Success { value: true });
-} 
+}
