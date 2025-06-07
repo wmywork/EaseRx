@@ -13,3 +13,6 @@ test-output:
 
 test-single-thread:
     cargo test -p easerx -- --test-threads=1
+
+doc:
+    cargo doc -p easerx --no-deps --open
