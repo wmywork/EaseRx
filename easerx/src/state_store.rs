@@ -1,6 +1,6 @@
 use crate::Async;
-use crate::ExecutionResult;
 use crate::State;
+use crate::{ExecutionResult, execution_result_to_async};
 use futures_signals::signal::{Mutable, MutableSignalCloned, SignalExt, SignalStream};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::error::RecvError;
@@ -99,7 +99,7 @@ impl<S: State> StateStore<S> {
         }));
     }
 
-    pub fn execute_async_core<T, R, F, U, G>(
+    fn execute_async_core<T, R, F, U, G>(
         &self,
         computation: F,
         state_updater: U,
@@ -114,8 +114,8 @@ impl<S: State> StateStore<S> {
     {
         let set_state_tx = self.set_state_tx.clone();
         let set_state_tx_retained = self.set_state_tx.clone();
-
         tokio::spawn(async move {
+            // Update the state to indicate loading
             if let Some(getter) = state_getter.clone() {
                 let state_updater_clone = state_updater.clone();
                 let _ = set_state_tx_retained.send(Box::new(move |old_state| {
@@ -130,16 +130,18 @@ impl<S: State> StateStore<S> {
                     Async::Loading(None),
                 );
             }
+            // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
+            // Run the computation in an async context
             let async_result = if let Some(token) = cancellation_token {
                 let token_clone = token.clone();
                 tokio::select! {
                     biased;
                     _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
-                    result = computation => result.into_async(),
+                    result = computation => execution_result_to_async(result),
                 }
             } else {
-                computation.await.into_async()
+                execution_result_to_async(computation.await)
             };
 
             let _ = set_state_tx.send(Box::new(move |old_state| {
@@ -153,7 +155,7 @@ impl<S: State> StateStore<S> {
         });
     }
 
-    pub fn execute_blocking_core<T, R, F, U, G>(
+    fn execute_blocking_core<T, R, F, U, G>(
         &self,
         computation: F,
         state_updater: U,
@@ -169,6 +171,7 @@ impl<S: State> StateStore<S> {
         let set_state_tx = self.set_state_tx.clone();
         let set_state_tx_retained = self.set_state_tx.clone();
         tokio::spawn(async move {
+            // Update the state to indicate loading
             if let Some(getter) = state_getter.clone() {
                 let state_updater_clone = state_updater.clone();
                 let _ = set_state_tx_retained.send(Box::new(move |old_state| {
@@ -183,25 +186,25 @@ impl<S: State> StateStore<S> {
                     Async::Loading(None),
                 );
             }
+            // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
+            // Run the computation in a blocking context
             let async_result = if let Some(token) = cancellation_token {
                 let token_clone = token.clone();
                 tokio::select! {
-                    biased;
-                    _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
-                    result = tokio::task::spawn_blocking({
-                        let token = token.clone();
-                        move || computation(Some(token))
-                    }) => {
-                        match result {
-                            Ok(r) => r.into_async(),
-                            Err(e) => Async::fail_with_message(e.to_string(), None),
-                        }
-                    },
-                }
+                                biased;
+                                _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
+                                result = tokio::task::spawn_blocking({
+                                    let token = token.clone();
+                                    move || computation(Some(token))
+                                }) => match result {
+                    Ok(result) => execution_result_to_async(result),
+                    Err(e) => Async::fail_with_message(e.to_string(), None),
+                },
+                            }
             } else {
                 match tokio::task::spawn_blocking(move || computation(None)).await {
-                    Ok(r) => r.into_async(),
+                    Ok(r) => execution_result_to_async(r),
                     Err(e) => Async::fail_with_message(e.to_string(), None),
                 }
             };
@@ -376,15 +379,17 @@ impl<S: State> StateStore<S> {
         U: FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
-
-        Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
-
         tokio::spawn(async move {
-            let async_result = match tokio::time::timeout(timeout, computation).await {
-                Ok(result) => result.into_async(),
+            // Update the state to indicate loading
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
+            // Yield to allow the state to be updated before running the computation
+            tokio::task::yield_now().await;
+            // Run the computation with a timeout
+            let result = tokio::time::timeout(timeout, computation).await;
+            let async_result = match result {
+                Ok(result) => execution_result_to_async(result),
                 Err(_) => Async::fail_with_timeout(None),
             };
-
             Self::update_async_state(&set_state_tx, state_updater, async_result);
         });
     }
@@ -401,14 +406,16 @@ impl<S: State> StateStore<S> {
         U: FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
-
-        Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
-
         tokio::spawn(async move {
+            // Update the state to indicate loading
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
+            // Yield to allow the state to be updated before running the computation
+            tokio::task::yield_now().await;
+            // Run the computation in a blocking context
             let inner_computation = tokio::task::spawn_blocking(computation);
             let async_result = match tokio::time::timeout(timeout, inner_computation).await {
                 Ok(result) => match result {
-                    Ok(inner_result) => inner_result.into_async(),
+                    Ok(inner_result) => execution_result_to_async(inner_result),
                     Err(inner_error) => Async::fail_with_message(inner_error.to_string(), None),
                 },
                 Err(_) => Async::fail_with_timeout(None),

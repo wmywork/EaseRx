@@ -1,4 +1,3 @@
-use crate::ExecutionResult;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -185,30 +184,5 @@ impl<T: Clone> Async<T> {
 impl<T: Clone> Default for Async<T> {
     fn default() -> Self {
         Async::Uninitialized
-    }
-}
-
-impl<T: Clone> From<Option<T>> for Async<T> {
-    fn from(value: Option<T>) -> Self {
-        match value {
-            Some(v) => Async::success(v),
-            None => Async::fail_with_none(value),
-        }
-    }
-}
-
-impl<T: Clone, R, E> From<Result<R, E>> for Async<T>
-where
-    R: ExecutionResult<T>,
-    E: Into<E> + ToString,
-{
-    fn from(value: Result<R, E>) -> Self {
-        match value {
-            Ok(r) => r.into_async(),
-            Err(e) => Async::Fail {
-                error: AsyncError::Error(e.to_string()),
-                value: None,
-            },
-        }
     }
 }

@@ -202,49 +202,6 @@ fn test_success_or_fail_with_retain() {
     assert!(matches!(result, Async::Loading(Some(42))));
 }
 
-// Test from trait implementation for Result
-#[test]
-fn test_async_from_result() {
-    // Test with Result::Ok
-    let result: Result<i32, &str> = Ok(42);
-    let async_result: Async<i32> = Async::from(result);
-
-    assert!(matches!(async_result, Async::Success { value: 42 }));
-
-    // Test with Result::Err
-    let result: Result<i32, &str> = Err("error");
-    let async_result: Async<i32> = Async::from(result);
-
-    match async_result {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Error(msg) if msg == "error"));
-            assert!(value.is_none());
-        }
-        _ => panic!("Expected Async::Fail variant"),
-    }
-}
-
-// Test from trait implementation for Option
-#[test]
-fn test_async_from_option() {
-    // Test with Option::Some
-    let result: Option<i32> = Some(8);
-    let async_result: Async<i32> = Async::from(result);
-    assert!(matches!(async_result, Async::Success { value: 8 }));
-    assert!(async_result.is_success());
-
-    // Test with Option::None
-    let result: Option<i32> = None;
-    let async_result: Async<i32> = Async::from(result);
-    assert!(matches!(
-        async_result,
-        Async::Fail {
-            error: AsyncError::None,
-            value: None,
-        }
-    ));
-    assert!(async_result.is_fail_with_none());
-}
 
 // Test From trait implementation for &Async<T>
 #[test]
