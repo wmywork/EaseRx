@@ -1,9 +1,9 @@
-use crate::{execution_result_to_async, Async, AsyncError};
+use crate::{Async, AsyncError, ExecutionResult};
 
 #[test]
 fn test_value_to_async() {
     let value = 42;
-    let async_value = execution_result_to_async(value);
+    let async_value = value.into_async();
 
     assert!(matches!(async_value, Async::Success { value: 42 }));
 }
@@ -11,7 +11,7 @@ fn test_value_to_async() {
 #[test]
 fn test_result_ok_to_async() {
     let result: Result<i32, &str> = Ok(42);
-    let async_result = execution_result_to_async(result);
+    let async_result = result.into_async();
 
     assert!(matches!(async_result, Async::Success { value: 42 }));
 }
@@ -19,7 +19,7 @@ fn test_result_ok_to_async() {
 #[test]
 fn test_result_err_to_async() {
     let result: Result<i32, &str> = Err("error message");
-    let async_result: Async<i32> = execution_result_to_async(result);
+    let async_result: Async<i32> = result.into_async();
 
     match async_result {
         Async::Fail { error, value } => {
@@ -33,7 +33,7 @@ fn test_result_err_to_async() {
 #[test]
 fn test_option_some_to_async() {
     let option = Some(42);
-    let async_option = execution_result_to_async(option);
+    let async_option = option.into_async();
 
     assert!(matches!(async_option, Async::Success { value: 42 }));
 }
@@ -41,7 +41,7 @@ fn test_option_some_to_async() {
 #[test]
 fn test_option_none_to_async() {
     let option: Option<i32> = None;
-    let async_option: Async<i32> = execution_result_to_async(option);
+    let async_option: Async<i32> = option.into_async();
 
     match async_option {
         Async::Fail { error, value } => {
@@ -64,7 +64,7 @@ fn test_complex_type_conversion() {
         id: 1,
         name: "John".to_string(),
     };
-    let async_user = execution_result_to_async(user);
+    let async_user = user.into_async();
 
     match async_user {
         Async::Success { value } => {
@@ -87,7 +87,7 @@ fn test_result_with_custom_error() {
     }
 
     let result: Result<i32, CustomError> = Err(CustomError("custom error".to_string()));
-    let async_result = execution_result_to_async(result);
+    let async_result = result.into_async();
 
     match async_result {
         Async::Fail { error, value } => {

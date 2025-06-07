@@ -1,4 +1,4 @@
-use crate::{Async, AsyncError};
+use crate::Async;
 
 pub trait ExecutionResult<T: Clone> {
     fn into_async(self) -> Async<T>;
@@ -6,7 +6,7 @@ pub trait ExecutionResult<T: Clone> {
 
 impl<T: Clone> ExecutionResult<T> for T {
     fn into_async(self) -> Async<T> {
-        Async::Success { value: self }
+        Async::success(self)
     }
 }
 
@@ -16,11 +16,8 @@ where
 {
     fn into_async(self) -> Async<T> {
         match self {
-            Ok(value) => Async::Success { value },
-            Err(error) => Async::Fail {
-                error: AsyncError::Error(error.to_string()),
-                value: None,
-            },
+            Ok(value) => Async::success(value),
+            Err(error) => Async::fail_with_message(error.to_string(), None),
         }
     }
 }
@@ -28,18 +25,8 @@ where
 impl<T: Clone> ExecutionResult<T> for Option<T> {
     fn into_async(self) -> Async<T> {
         match self {
-            Some(value) => Async::Success { value },
-            None => Async::Fail {
-                error: AsyncError::None,
-                value: None,
-            },
+            Some(value) => Async::success(value),
+            None => Async::fail_with_none(None),
         }
     }
-}
-
-pub fn execution_result_to_async<T: Clone, R>(result: R) -> Async<T>
-where
-    R: ExecutionResult<T>,
-{
-    result.into_async()
 }
