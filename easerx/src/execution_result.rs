@@ -12,7 +12,7 @@ impl<T: Clone> ExecutionResult<T> for T {
 
 impl<T: Clone, E> ExecutionResult<T> for Result<T, E>
 where
-    E: Into<E> + ToString,
+    E: ToString,
 {
     fn into_async(self) -> Async<T> {
         match self {

@@ -79,45 +79,44 @@ fn test_fail() {
 // Test factory methods
 #[test]
 fn test_fail_factory_methods() {
-
     // Test fail_with_error
     let fail = Async::fail_with_none(None::<i32>);
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::None));
-            assert!(value.is_none());
+    assert_eq!(
+        fail,
+        Async::Fail {
+            error: AsyncError::None,
+            value: None
         }
-        _ => panic!("Expected Async::Fail with None error"),
-    }
+    );
     // Test fail_with_cancelled
     let fail = Async::<i32>::fail_with_cancelled(Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Cancelled));
-            assert_eq!(value, Some(42));
+    assert_eq!(
+        fail,
+        Async::Fail {
+            error: AsyncError::Cancelled,
+            value: Some(42)
         }
-        _ => panic!("Expected Async::Fail with Cancelled error"),
-    }
+    );
 
     // Test fail_with_timeout
     let fail = Async::<i32>::fail_with_timeout(Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Timeout));
-            assert_eq!(value, Some(42));
+    assert_eq!(
+        fail,
+        Async::Fail {
+            error: AsyncError::Timeout,
+            value: Some(42)
         }
-        _ => panic!("Expected Async::Fail with Timeout error"),
-    }
+    );
 
     // Test fail_with_message
     let fail = Async::<i32>::fail_with_message("custom error", Some(42));
-    match fail {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Error(msg) if msg == "custom error"));
-            assert_eq!(value, Some(42));
+    assert_eq!(
+        fail,
+        Async::Fail {
+            error: AsyncError::Error("custom error".to_string()),
+            value: Some(42)
         }
-        _ => panic!("Expected Async::Fail with Error"),
-    }
+    );
 }
 
 // Test error state helpers
@@ -179,29 +178,27 @@ fn test_success_or_fail_with_retain() {
     let retained = Async::success(100);
 
     let result = success.success_or_fail_with_retain(|| &retained);
-    assert!(matches!(result, Async::Success { value: 42 }));
+    assert_eq!(result, Async::Success { value: 42 });
 
     // Test with fail state
     let fail = Async::fail(AsyncError::Error("Error".to_string()), None);
     let retained = Async::success(100);
 
     let result = fail.success_or_fail_with_retain(|| &retained);
-    match result {
-        Async::Fail { error, value } => {
-            assert!(matches!(error, AsyncError::Error(msg) if msg == "Error"));
-            assert!(matches!(value, Some(v) if v == 100));
+    assert_eq!(
+        result,
+        Async::Fail {
+            error: AsyncError::Error("Error".to_string()),
+            value: Some(100)
         }
-        _ => panic!("Expected Async::Fail with retained value"),
-    }
-
+    );
     // Test with loading state
     let loading = Async::loading(Some(42));
     let retained = Async::success(100);
 
     let result = loading.success_or_fail_with_retain(|| &retained);
-    assert!(matches!(result, Async::Loading(Some(42))));
+    assert_eq!(result, Async::Loading(Some(42)));
 }
-
 
 // Test From trait implementation for &Async<T>
 #[test]

@@ -16,3 +16,6 @@ test-single-thread:
 
 doc:
     cargo doc -p easerx --no-deps --open
+
+cov:
+    cargo llvm-cov -p easerx --html

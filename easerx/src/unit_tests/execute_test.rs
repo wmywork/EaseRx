@@ -1,0 +1,522 @@
+use crate::unit_tests::TestState;
+use crate::{Async, AsyncError, StateStore};
+use futures_signals::signal::SignalExt;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+use tokio_util::sync::CancellationToken;
+
+// Test execute functionality
+#[tokio::test]
+async fn test_execute() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute a computation
+    store.execute(
+        || "Hello, World!".to_string(),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(
+        state_vec[2],
+        Async::Success {
+            value: "Hello, World!".to_string()
+        }
+    );
+}
+
+// Test execute with error
+#[tokio::test]
+async fn test_execute_with_error() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute a computation that returns an error
+    store.execute(
+        || Err("Operation failed"),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(
+        state_vec[2],
+        Async::Fail {
+            error: AsyncError::Error("Operation failed".to_string()),
+            value: None,
+        }
+    );
+}
+
+// Test execute with Option::none
+#[tokio::test]
+async fn test_execute_with_none() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute a computation that returns an error
+    store.execute(
+        || None,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::fail_with_none(None));
+}
+
+// Test execute with retain value
+#[tokio::test]
+async fn test_execute_with_retain_success() {
+    let initial_state = TestState {
+        data: Async::success("initial".to_string()),
+    };
+
+    let store = StateStore::new(initial_state);
+
+    // Execute a computation that fails but should retain previous value
+    store.execute_with_retain(
+        || Result::<String, &str>::Ok("success".to_string()),
+        |state| &state.data,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let state_vec = Arc::new(RwLock::new(Vec::new()));
+
+    store
+        .to_signal()
+        .stop_if(|_| {
+            let len = state_vec.read().unwrap().len();
+            len >= 2
+        })
+        .for_each(|state| {
+            state_vec.write().unwrap().push(state.data);
+            async {}
+        })
+        .await;
+
+    let state_vec = state_vec
+        .read()
+        .unwrap()
+        .iter()
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(state_vec[0], Async::success("initial".to_string()));
+    assert_eq!(state_vec[1], Async::Loading(Some("initial".to_string())));
+    assert_eq!(state_vec[2], Async::success("success".to_string()));
+}
+
+// Test execute with retain value fail
+#[tokio::test]
+async fn test_execute_with_retain_fail() {
+    let initial_state = TestState {
+        data: Async::success("initial".to_string()),
+    };
+
+    let store = StateStore::new(initial_state);
+
+    // Execute a computation that fails but should retain previous value
+    store.execute_with_retain(
+        || Err("Operation failed"),
+        |state| &state.data,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let state_vec = Arc::new(RwLock::new(Vec::new()));
+
+    store
+        .to_signal()
+        .stop_if(|_| {
+            let len = state_vec.read().unwrap().len();
+            len >= 2
+        })
+        .for_each(|state| {
+            state_vec.write().unwrap().push(state.data);
+            async {}
+        })
+        .await;
+
+    let state_vec = state_vec
+        .read()
+        .unwrap()
+        .iter()
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(state_vec[0], Async::success("initial".to_string()));
+    assert_eq!(state_vec[1], Async::Loading(Some("initial".to_string())));
+    assert_eq!(
+        state_vec[2],
+        Async::fail_with_message("Operation failed", Some("initial".to_string()))
+    );
+}
+
+// Test execute_cancellable_success
+#[tokio::test]
+async fn test_execute_cancellable_success() {
+    let store = StateStore::new(TestState::default());
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable(
+        token,
+        |_| {
+            // Simulate work
+            "success".to_string()
+        },
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::success("success".to_string()));
+}
+
+// Test execute_cancellable_cancel_inner
+#[tokio::test]
+async fn test_execute_cancellable_cancel_inner() {
+    let store = StateStore::new(TestState::default());
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable(
+        token.clone(),
+        |token| {
+            token.cancel();
+            "Result".to_string()
+        },
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    // Cancel the operation immediately
+    //token.cancel();
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::fail_with_cancelled(None));
+}
+
+// Test execute_cancellable_cancel_outer
+#[tokio::test]
+async fn test_execute_cancellable_cancel_outer() {
+    let store = StateStore::new(TestState::default());
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable(
+        token.clone(),
+        |_| {
+            "Result".to_string()
+        },
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    // Cancel the operation immediately
+    token.cancel();
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::fail_with_cancelled(None));
+}
+
+// Test execute_cancellable_with_retain_success
+#[tokio::test]
+async fn test_execute_cancellable_with_retain_success() {
+    let initial_state = TestState {
+        data: Async::success("initial".to_string()),
+    };
+    let store = StateStore::new(initial_state);
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable_with_retain(
+        token.clone(),
+        |_| {
+            // Simulate work
+            "success".to_string()
+        },
+        |state| &state.data,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let state_vec = Arc::new(RwLock::new(Vec::new()));
+
+    store
+        .to_signal()
+        .stop_if(|_| {
+            let len = state_vec.read().unwrap().len();
+            len >= 2
+        })
+        .for_each(|state| {
+            state_vec.write().unwrap().push(state.data);
+            async {}
+        })
+        .await;
+
+    let state_vec = state_vec
+        .read()
+        .unwrap()
+        .iter()
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(state_vec[0], Async::success("initial".to_string()));
+    assert_eq!(state_vec[1], Async::loading(Some("initial".to_string())));
+    assert_eq!(state_vec[2], Async::success("success".to_string()));
+}
+
+// Test execute_cancellable_with_retain
+#[tokio::test]
+async fn test_execute_cancellable_with_retain_fail() {
+    let initial_state = TestState {
+        data: Async::success("initial".to_string()),
+    };
+    let store = StateStore::new(initial_state);
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable_with_retain(
+        token.clone(),
+        |_| {
+            // Simulate work
+            Err("Result".to_string())
+        },
+        |state| &state.data,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let state_vec = Arc::new(RwLock::new(Vec::new()));
+
+    store
+        .to_signal()
+        .stop_if(|_| {
+            let len = state_vec.read().unwrap().len();
+            len >= 2
+        })
+        .for_each(|state| {
+            state_vec.write().unwrap().push(state.data);
+            async {}
+        })
+        .await;
+
+    let state_vec = state_vec
+        .read()
+        .unwrap()
+        .iter()
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(state_vec[0], Async::success("initial".to_string()));
+    assert_eq!(state_vec[1], Async::loading(Some("initial".to_string())));
+    assert_eq!(
+        state_vec[2],
+        Async::fail_with_message("Result".to_string(), Some("initial".to_string()))
+    );
+}
+
+// Test execute_cancellable_with_retain_cancel
+#[tokio::test]
+async fn test_execute_cancellable_with_retain_cancel() {
+    let initial_state = TestState {
+        data: Async::success("initial".to_string()),
+    };
+    let store = StateStore::new(initial_state);
+    let token = CancellationToken::new();
+
+    // Execute a cancellable computation
+    store.execute_cancellable_with_retain(
+        token.clone(),
+        |token| {
+            token.cancel();
+            "Result".to_string()
+        },
+        |state| &state.data,
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    // Cancel the operation immediately
+    //token.cancel();
+
+    let state_vec = Arc::new(RwLock::new(Vec::new()));
+
+    store
+        .to_signal()
+        .stop_if(|_| {
+            let len = state_vec.read().unwrap().len();
+            len >= 2
+        })
+        .for_each(|state| {
+            state_vec.write().unwrap().push(state.data);
+            async {}
+        })
+        .await;
+
+    let state_vec = state_vec
+        .read()
+        .unwrap()
+        .iter()
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(state_vec[0], Async::success("initial".to_string()));
+    assert_eq!(state_vec[1], Async::loading(Some("initial".to_string())));
+    assert_eq!(
+        state_vec[2],
+        Async::fail_with_cancelled(Some("initial".to_string()))
+    );
+}
+
+// Test execute_with_timeout_success
+#[tokio::test]
+async fn test_execute_with_timeout_success() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute an async computation that takes longer than the timeout
+    store.execute_with_timeout(
+        || {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            "Delayed Result".to_string()
+        },
+        Duration::from_millis(50),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::success("Delayed Result".to_string()));
+}
+
+// Test execute_with_timeout_fail
+#[tokio::test]
+async fn test_execute_with_timeout_fail() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute an async computation that takes longer than the timeout
+    store.execute_with_timeout(
+        || {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            Err("fail".to_string())
+        },
+        Duration::from_millis(50),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(
+        state_vec[2],
+        Async::fail_with_message("fail".to_string(), None)
+    );
+}
+
+// Test execute_with_timeout
+#[tokio::test]
+async fn test_execute_with_timeout() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute an async computation that takes longer than the timeout
+    store.execute_with_timeout(
+        || {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            "Delayed Result".to_string()
+        },
+        Duration::from_millis(10),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    let mut state_vec = Vec::new();
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            state_vec.push(state.data);
+            async {}
+        })
+        .await;
+
+    assert_eq!(state_vec[0], Async::Uninitialized);
+    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[2], Async::fail_with_timeout(None));
+}

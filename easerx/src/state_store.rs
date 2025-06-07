@@ -1,7 +1,8 @@
 use crate::Async;
-use crate::State;
 use crate::ExecutionResult;
+use crate::State;
 use futures_signals::signal::{Mutable, MutableSignalCloned, SignalExt, SignalStream};
+use std::fmt::Debug;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::error::RecvError;
 use tokio_util::sync::CancellationToken;
@@ -133,7 +134,7 @@ impl<S: State> StateStore<S> {
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation in a blocking context
-            let async_result = if let Some(token) = cancellation_token {
+            let async_result = if let Some(token) = cancellation_token.clone() {
                 let token_clone = token.clone();
                 tokio::select! {
                     biased;
@@ -154,11 +155,29 @@ impl<S: State> StateStore<S> {
             };
 
             let _ = set_state_tx.send(Box::new(move |old_state| {
-                let final_result = if let Some(getter) = state_getter {
+                let final_result =  match cancellation_token {
+                    Some(token) if token.is_cancelled() => {
+                        if let Some(getter) = state_getter {
+                            let retained = getter(&old_state).value_ref_clone();
+                            Async::fail_with_cancelled(retained)
+                        } else {
+                            Async::fail_with_cancelled(None)
+                        }
+                    }
+                    _ => {
+                        if let Some(getter) = state_getter {
+                            async_result.success_or_fail_with_retain(|| getter(&old_state))
+                        } else {
+                            async_result
+                        }
+                    }
+                };
+
+                /*let final_result = if let Some(getter) = state_getter {
                     async_result.success_or_fail_with_retain(|| getter(&old_state))
                 } else {
                     async_result
-                };
+                };*/
                 state_updater(old_state, final_result)
             }));
         });
@@ -238,7 +257,7 @@ impl<S: State> StateStore<S> {
             Some(cancellation_token),
         );
     }
-    
+
     fn execute_async_core<T, R, F, U, G>(
         &self,
         computation: F,
@@ -273,7 +292,7 @@ impl<S: State> StateStore<S> {
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation in an async context
-            let async_result = if let Some(token) = cancellation_token {
+            let async_result = if let Some(token) = cancellation_token.clone() {
                 let token_clone = token.clone();
                 tokio::select! {
                     biased;
@@ -285,11 +304,29 @@ impl<S: State> StateStore<S> {
             };
 
             let _ = set_state_tx.send(Box::new(move |old_state| {
-                let final_result = if let Some(getter) = state_getter {
+                let final_result =  match cancellation_token {
+                    Some(token) if token.is_cancelled() => {
+                        if let Some(getter) = state_getter {
+                            let retained = getter(&old_state).value_ref_clone();
+                            Async::fail_with_cancelled(retained)
+                        } else {
+                            Async::fail_with_cancelled(None)
+                        }
+                    }
+                    _ => {
+                        if let Some(getter) = state_getter {
+                            async_result.success_or_fail_with_retain(|| getter(&old_state))
+                        } else {
+                            async_result
+                        }
+                    }
+                };
+
+                /*let final_result = if let Some(getter) = state_getter {
                     async_result.success_or_fail_with_retain(|| getter(&old_state))
                 } else {
                     async_result
-                };
+                };*/
                 state_updater(old_state, final_result)
             }));
         });
@@ -373,8 +410,8 @@ impl<S: State> StateStore<S> {
         timeout: std::time::Duration,
         state_updater: U,
     ) where
-        T: Clone + Send + 'static,
-        R: ExecutionResult<T> + Send + 'static,
+        T: Clone + Send + 'static + Debug,
+        R: ExecutionResult<T> + Send + 'static + Debug,
         F: Future<Output = R> + Send + 'static,
         U: FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
     {
@@ -413,10 +450,11 @@ impl<S: State> StateStore<S> {
             tokio::task::yield_now().await;
             // Run the computation in a blocking context
             let inner_computation = tokio::task::spawn_blocking(computation);
-            let async_result = match tokio::time::timeout(timeout, inner_computation).await {
-                Ok(result) => match result {
-                    Ok(inner_result) => inner_result.into_async(),
-                    Err(inner_error) => Async::fail_with_message(inner_error.to_string(), None),
+            let result = tokio::time::timeout(timeout, inner_computation).await;
+            let async_result = match result {
+                Ok(inner_result) => match inner_result {
+                    Ok(final_result) => final_result.into_async(),
+                    Err(final_error) => Async::fail_with_message(final_error.to_string(), None),
                 },
                 Err(_) => Async::fail_with_timeout(None),
             };
