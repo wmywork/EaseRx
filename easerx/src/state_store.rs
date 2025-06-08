@@ -6,6 +6,14 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+/// A reactive state container that manages state updates and provides mechanisms for both synchronous and asynchronous operations.
+///
+/// `StateStore` is the core component of the EaseRx framework, responsible for managing application state
+/// and providing a reactive interface for state changes. It supports various execution modes including
+/// synchronous, asynchronous, cancellable, and operations with timeout.
+///
+/// The state is updated through a message-passing architecture to ensure thread safety and proper
+/// sequencing of state updates.
 pub struct StateStore<S: State> {
     state: Mutable<S>,
     set_state_tx: UnboundedSender<Box<dyn FnOnce(S) -> S + Send>>,
@@ -13,6 +21,25 @@ pub struct StateStore<S: State> {
 }
 
 impl<S: State> StateStore<S> {
+    /// Creates a new `StateStore` with the provided initial state.
+    ///
+    /// This initializes the internal state management system and spawns a background task
+    /// to process state updates.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use easerx::{StateStore, State};
+    ///
+    /// #[derive(Clone)]
+    /// struct AppState {
+    ///     counter: i32,
+    /// }
+    ///
+    /// impl State for AppState {}
+    ///
+    /// let store = StateStore::new(AppState { counter: 0 });
+    /// ```
     pub fn new(initial_state: S) -> Self {
         let state = Mutable::new(initial_state);
         let (set_state_tx, set_state_rx) =
@@ -53,14 +80,57 @@ impl<S: State> StateStore<S> {
         }
     }
 
+    /// Converts the state store into a stream of state changes.
+    ///
+    /// This method returns a `SignalStream` that emits a new value whenever the state changes.
+    /// It's useful for reactive UI frameworks or other systems that need to respond to state changes.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use futures_signals::signal_vec::SignalVecExt;
+    /// use futures_util::StreamExt;
+    ///
+    /// // Assuming store is a StateStore<AppState>
+    /// let stream = store.to_stream();
+    /// tokio::spawn(async move {
+    ///     stream.for_each(|state| {
+    ///         println!("State updated: {:?}", state);
+    ///         futures_util::future::ready(())
+    ///     }).await;
+    /// });
+    /// ```
     pub fn to_stream(&self) -> SignalStream<MutableSignalCloned<S>> {
         self.state.signal_cloned().to_stream()
     }
 
+    /// Returns a signal that represents the current state and its future changes.
+    ///
+    /// This method returns a `MutableSignalCloned` that can be used to observe state changes
+    /// in a reactive manner.
     pub fn to_signal(&self) -> MutableSignalCloned<S> {
         self.state.signal_cloned()
     }
 
+    /// Updates the state by applying a reducer function.
+    ///
+    /// The reducer function takes the current state and returns a new state.
+    /// This operation is performed asynchronously in the background.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState>
+    /// store.set_state(|state| {
+    ///     let mut new_state = state.clone();
+    ///     new_state.counter += 1;
+    ///     new_state
+    /// }).expect("Failed to update state");
+    /// ```
+    ///
+    /// ## Errors
+    ///
+    /// Returns an `AsyncError` if the state update channel is closed.
     pub fn set_state<F>(&self, reducer: F) -> Result<(), AsyncError>
     where
         F: FnOnce(S) -> S + Send + 'static,
@@ -70,6 +140,23 @@ impl<S: State> StateStore<S> {
             .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
+    /// Performs an action with the current state without modifying it.
+    ///
+    /// This is useful for side effects that need to read the current state
+    /// but don't need to update it.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState>
+    /// store.with_state(|state| {
+    ///     println!("Current counter value: {}", state.counter);
+    /// }).expect("Failed to access state");
+    /// ```
+    ///
+    /// ## Errors
+    ///
+    /// Returns an `AsyncError` if the state action channel is closed.
     pub fn with_state<F>(&self, action: F) -> Result<(), AsyncError>
     where
         F: FnOnce(S) + Send + 'static,
@@ -79,10 +166,30 @@ impl<S: State> StateStore<S> {
             .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
+    /// Returns a clone of the current state.
+    ///
+    /// This method provides immediate access to the current state value.
+    /// Note that the state might change immediately after this call.
     pub fn get_state(&self) -> S {
         self.state.get_cloned()
     }
 
+    /// Returns a future that resolves to the current state.
+    ///
+    /// This method is useful when you need to ensure you're working with the most
+    /// up-to-date state, especially after scheduling state updates.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState>
+    /// let state = store.await_state().await.expect("Failed to get state");
+    /// println!("Current counter value: {}", state.counter);
+    /// ```
+    ///
+    /// ## Errors
+    ///
+    /// Returns an `AsyncError` if the state channel is closed or if the oneshot channel fails.
     pub async fn await_state(&self) -> Result<S, AsyncError> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let send_result = self.with_state_tx.send(Box::new(|state| {
@@ -281,6 +388,24 @@ impl<S: State> StateStore<S> {
         })
     }
 
+    /// Executes a synchronous computation and updates the state with its result.
+    ///
+    /// This method runs the computation in a blocking task to avoid blocking the async runtime,
+    /// and updates the state with the result using the provided state updater function.
+    /// The state is first set to `Async::Loading(None)` before executing the computation.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
+    /// store.execute(
+    ///     || "Hello, World!".to_string(),
+    ///     |mut state, result| {
+    ///         state.data = result;
+    ///         state
+    ///     }
+    /// );
+    /// ```
     pub fn execute<T, R, F, U>(
         &self,
         computation: F,
@@ -300,6 +425,24 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes a synchronous computation and updates the state with its result, retaining previous values.
+    ///
+    /// Similar to `execute`, but this method retains the previous value when transitioning to the loading state.
+    /// This is useful for UI scenarios where you want to show previous data while loading new data.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
+    /// store.execute_with_retain(
+    ///     || "Updated data".to_string(),
+    ///     |state| &state.data,
+    ///     |mut state, result| {
+    ///         state.data = result;
+    ///         state
+    ///     }
+    /// );
+    /// ```
     pub fn execute_with_retain<T, R, F, G, U>(
         &self,
         computation: F,
@@ -321,6 +464,33 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes a cancellable synchronous computation and updates the state with its result.
+    ///
+    /// This method allows the computation to be cancelled using the provided cancellation token.
+    /// If cancelled, the state will be updated with `Async::Fail` with a cancellation error.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use tokio_util::sync::CancellationToken;
+    ///
+    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
+    /// let token = CancellationToken::new();
+    /// let handle = store.execute_cancellable(
+    ///     token.clone(),
+    ///     |token| {
+    ///         // Check token.is_cancelled() periodically if the operation is long-running
+    ///         "Result data".to_string()
+    ///     },
+    ///     |mut state, result| {
+    ///         state.data = result;
+    ///         state
+    ///     }
+    /// );
+    ///
+    /// // To cancel the operation:
+    /// // token.cancel();
+    /// ```
     pub fn execute_cancellable<T, R, F, U>(
         &self,
         cancellation_token: CancellationToken,
@@ -341,6 +511,10 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes a cancellable synchronous computation and updates the state with its result, retaining previous values.
+    ///
+    /// Combines the functionality of `execute_with_retain` and `execute_cancellable` to provide
+    /// a cancellable operation that retains previous values during loading state.
     pub fn execute_cancellable_with_retain<T, R, F, U, G>(
         &self,
         cancellation_token: CancellationToken,
@@ -470,6 +644,27 @@ impl<S: State> StateStore<S> {
         })
     }
 
+    /// Executes an asynchronous computation and updates the state with its result.
+    ///
+    /// This method runs the provided future and updates the state with the result
+    /// using the provided state updater function. The state is first set to `Async::Loading(None)`
+    /// before executing the computation.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<Vec<String>>
+    /// store.async_execute(
+    ///     async {
+    ///         // Fetch data from a database or API
+    ///         vec!["Item 1".to_string(), "Item 2".to_string()]
+    ///     },
+    ///     |mut state, result| {
+    ///         state.data = result;
+    ///         state
+    ///     }
+    /// );
+    /// ```
     pub fn async_execute<T, R, F, U>(
         &self,
         computation: F,
@@ -489,6 +684,11 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes an asynchronous computation and updates the state with its result, retaining previous values.
+    ///
+    /// Similar to `async_execute`, but this method retains the previous value when transitioning
+    /// to the loading state. This is useful for UI scenarios where you want to show previous data
+    /// while loading new data.
     pub fn async_execute_with_retain<T, R, F, G, U>(
         &self,
         computation: F,
@@ -505,6 +705,10 @@ impl<S: State> StateStore<S> {
         self.execute_async_core(computation, state_updater, Some(state_getter), None)
     }
 
+    /// Executes a cancellable asynchronous computation and updates the state with its result.
+    ///
+    /// This method allows the async computation to be cancelled using the provided cancellation token.
+    /// If cancelled, the state will be updated with `Async::Fail` with a cancellation error.
     pub fn async_execute_cancellable<T, R, F, U, Fut>(
         &self,
         cancellation_token: CancellationToken,
@@ -526,6 +730,10 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes a cancellable asynchronous computation and updates the state with its result, retaining previous values.
+    ///
+    /// Combines the functionality of `async_execute_with_retain` and `async_execute_cancellable` to provide
+    /// a cancellable operation that retains previous values during loading state.
     pub fn async_execute_cancellable_with_retain<T, R, F, U, Fut, G>(
         &self,
         cancellation_token: CancellationToken,
@@ -549,6 +757,30 @@ impl<S: State> StateStore<S> {
         )
     }
 
+    /// Executes an asynchronous computation with a timeout and updates the state with its result.
+    ///
+    /// This method runs the provided future with a timeout, and if the timeout is reached,
+    /// the state will be updated with `Async::Fail` with a timeout error.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
+    /// store.async_execute_with_timeout(
+    ///     async {
+    ///         // Some potentially slow operation
+    ///         tokio::time::sleep(Duration::from_millis(100)).await;
+    ///         "Result data".to_string()
+    ///     },
+    ///     Duration::from_secs(1), // 1 second timeout
+    ///     |mut state, result| {
+    ///         state.data = result;
+    ///         state
+    ///     }
+    /// );
+    /// ```
     pub fn async_execute_with_timeout<T, R, F, U>(
         &self,
         computation: F,
@@ -577,6 +809,10 @@ impl<S: State> StateStore<S> {
         })
     }
 
+    /// Executes a synchronous computation with a timeout and updates the state with its result.
+    ///
+    /// This method runs the provided computation in a blocking task with a timeout,
+    /// and if the timeout is reached, the state will be updated with `Async::Fail` with a timeout error.
     pub fn execute_with_timeout<T, R, F, U>(
         &self,
         computation: F,

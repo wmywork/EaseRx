@@ -1,70 +1,114 @@
 use thiserror::Error;
 
+/// Represents the state of an asynchronous operation with its possible outcomes.
+///
+/// `Async<T>` is a generic enum that encapsulates the different states an asynchronous
+/// operation can be in, including uninitialized, loading, success, and failure states.
+/// It provides a uniform way to represent and handle asynchronous state in a reactive application.
+///
+/// The type parameter `T` represents the successful result type of the operation.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Async<T: Clone> {
+    /// The initial state before any operation has been attempted.
     Uninitialized,
+    
+    /// The operation is in progress. May optionally contain the previous value.
     Loading(Option<T>),
+    
+    /// The operation completed successfully with a result value.
     Success { value: T },
+    
+    /// The operation failed. Contains an error and optionally the previous value.
     Fail { error: AsyncError, value: Option<T> },
 }
 
+/// Represents errors that can occur during asynchronous operations.
+///
+/// This enum provides a standardized way to represent different types of errors
+/// that might occur during asynchronous operations, such as general errors,
+/// None values, cancellations, and timeouts.
 #[derive(Error, Debug, Clone, Eq, PartialEq)]
 pub enum AsyncError {
+    /// A general error with a message describing what went wrong.
     #[error("{0}")]
     Error(String),
+    
+    /// An operation returned None when a value was expected.
     #[error("Operation returned None!")]
     None,
+    
+    /// The operation was cancelled before completion.
     #[error("Task was cancelled!")]
     Cancelled,
+    
+    /// The operation timed out.
     #[error("deadline has elapsed!")]
     Timeout,
 }
 
 impl AsyncError {
+    /// Returns true if this error represents a None result.
     pub fn is_none(&self) -> bool {
         matches!(self, AsyncError::None)
     }
 
+    /// Returns true if this error is a general error with a message.
     pub fn is_error(&self) -> bool {
         matches!(self, AsyncError::Error { .. })
     }
 
+    /// Returns true if this error represents a cancelled operation.
     pub fn is_cancelled(&self) -> bool {
         matches!(self, AsyncError::Cancelled)
     }
+    
+    /// Returns true if this error represents a timeout.
     pub fn is_timeout(&self) -> bool {
         matches!(self, AsyncError::Timeout)
     }
 }
 
 impl<T: Clone> Async<T> {
+    /// Returns true if the operation has completed (either successfully or with an error).
     pub fn is_complete(&self) -> bool {
         matches!(self, Async::Success { .. } | Async::Fail { .. })
     }
 
+    /// Returns true if the operation should be (re)loaded.
+    ///
+    /// This is typically true when the state is either uninitialized or in a failed state.
     pub fn should_load(&self) -> bool {
         matches!(self, Async::Uninitialized | Async::Fail { .. })
     }
 
+    /// Returns true if the operation has not yet completed.
+    ///
+    /// This is true when the state is either uninitialized or currently loading.
     pub fn is_incomplete(&self) -> bool {
         matches!(self, Async::Uninitialized | Async::Loading(_))
     }
 
+    /// Returns true if the operation has not been started.
     pub fn is_uninitialized(&self) -> bool {
         matches!(self, Async::Uninitialized)
     }
 
+    /// Returns true if the operation is currently in progress.
     pub fn is_loading(&self) -> bool {
         matches!(self, Async::Loading { .. })
     }
+    
+    /// Returns true if the operation completed successfully.
     pub fn is_success(&self) -> bool {
         matches!(self, Async::Success { .. })
     }
 
+    /// Returns true if the operation failed.
     pub fn is_fail(&self) -> bool {
         matches!(self, Async::Fail { .. })
     }
 
+    /// Returns true if the operation failed with a general error.
     pub fn is_fail_with_error(&self) -> bool {
         if let Async::Fail { error, .. } = self {
             error.is_error()
@@ -73,6 +117,7 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Returns true if the operation failed because it returned None.
     pub fn is_fail_with_none(&self) -> bool {
         if let Async::Fail { error, .. } = self {
             error.is_none()
@@ -81,6 +126,7 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Returns true if the operation failed because it was cancelled.
     pub fn is_fail_with_canceled(&self) -> bool {
         if let Async::Fail { error, .. } = self {
             error.is_cancelled()
@@ -89,6 +135,7 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Returns true if the operation failed because it timed out.
     pub fn is_fail_with_timeout(&self) -> bool {
         if let Async::Fail { error, .. } = self {
             error.is_timeout()
@@ -97,6 +144,13 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Consumes the `Async` and returns the contained value if available.
+    ///
+    /// This method extracts the value from any variant that might contain it:
+    /// - `Success` variant returns `Some(value)`
+    /// - `Loading` variant with a retained value returns `Some(value)`
+    /// - `Fail` variant with a retained value returns `Some(value)`
+    /// - Otherwise returns `None`
     pub fn value(self) -> Option<T> {
         match self {
             Async::Uninitialized => None,
@@ -106,6 +160,9 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Returns a reference to the contained value if available.
+    ///
+    /// Similar to `value()` but returns a reference instead of consuming the `Async`.
     pub fn value_ref(&self) -> Option<&T> {
         match self {
             Async::Loading(Some(value)) => Some(&value),
@@ -117,6 +174,10 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Returns a clone of the contained value if available.
+    ///
+    /// This method is similar to `value_ref()` but returns a clone of the value
+    /// rather than a reference.
     pub fn value_ref_clone(self: &Async<T>) -> Option<T> {
         match self {
             Async::Loading(Some(value)) => Some(value.clone()),
@@ -128,6 +189,10 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Sets or updates the retained value in `Loading` or `Fail` states.
+    ///
+    /// This method is useful when you want to update the retained value
+    /// without changing the state itself.
     pub fn set_retain_value(mut self, value: Option<T>)-> Self {
         match self {
             Async::Loading(_) => {
@@ -141,17 +206,24 @@ impl<T: Clone> Async<T> {
         self
     }
 
+    /// Creates a new `Async` in the `Loading` state.
+    ///
+    /// Optionally includes a retained value from a previous operation.
     pub fn loading(value: Option<T>) -> Self {
         Async::Loading(value)
     }
 
+    /// Creates a new `Async` in the `Success` state with the provided value.
     pub fn success(value: T) -> Self {
         Async::Success { value }
     }
 
+    /// Creates a new `Async` in the `Fail` state with the provided error and optional retained value.
     pub fn fail(error: AsyncError, value: Option<T>) -> Self {
         Async::Fail { error, value }
     }
+    
+    /// Creates a new `Async` in the `Fail` state with a cancellation error.
     pub fn fail_with_cancelled(value: Option<T>) -> Self {
         Async::Fail {
             error: AsyncError::Cancelled,
@@ -159,6 +231,7 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Creates a new `Async` in the `Fail` state with a timeout error.
     pub fn fail_with_timeout(value: Option<T>) -> Self {
         Async::Fail {
             error: AsyncError::Timeout,
@@ -166,10 +239,13 @@ impl<T: Clone> Async<T> {
         }
     }
 
+    /// Creates a new `Async` in the `Fail` state with a general error message.
     pub fn fail_with_message(message: impl Into<String>, value: Option<T>) -> Self {
         let error = AsyncError::Error(message.into());
         Async::Fail { error, value }
     }
+    
+    /// Creates a new `Async` in the `Fail` state with a None error.
     pub fn fail_with_none(value: Option<T>) -> Self {
         Async::Fail {
             error: AsyncError::None,
@@ -179,6 +255,7 @@ impl<T: Clone> Async<T> {
 }
 
 impl<T: Clone> Default for Async<T> {
+    /// Returns the default value for `Async<T>`, which is `Async::Uninitialized`.
     fn default() -> Self {
         Async::Uninitialized
     }
