@@ -170,6 +170,35 @@ fn test_async_error_methods() {
     assert!(cancelled.is_cancelled());
 }
 
+//test cancelled_with_retain
+#[test]
+fn test_cancelled_with_retain(){
+    let async_state = Async::loading(Some(1));
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(1)));
+
+    let async_state = Async::success(2);
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(2)));
+
+    let async_state = Async::fail_with_message("error".to_string(), Some(3));
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(3)));
+
+    let async_state = Async::fail_with_none( Some(4));
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(4)));
+
+    let async_state = Async::fail_with_timeout(Some(5));
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(5)));
+
+    let async_state = Async::fail_with_cancelled(Some(6));
+    let result = async_state.cancelled_with_retain();
+    assert_eq!(result, Async::fail_with_cancelled(Some(6)));
+
+}
+
 // Test success_or_fail_with_retain functionality
 #[test]
 fn test_success_or_fail_with_retain() {
