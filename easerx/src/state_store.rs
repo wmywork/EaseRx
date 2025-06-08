@@ -37,8 +37,11 @@ impl<S: State> StateStore<S> {
     /// }
     ///
     /// impl State for AppState {}
-    ///
-    /// let store = StateStore::new(AppState { counter: 0 });
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(AppState { counter: 0 });
+    ///     Ok(())
+    /// }
     /// ```
     pub fn new(initial_state: S) -> Self {
         let state = Mutable::new(initial_state);
@@ -89,16 +92,28 @@ impl<S: State> StateStore<S> {
     ///
     /// ```rust
     /// use futures_signals::signal_vec::SignalVecExt;
-    /// use futures_util::StreamExt;
+    /// use futures::StreamExt;
+    /// use easerx::{EaseRxStreamExt, State, StateStore};
     ///
-    /// // Assuming store is a StateStore<AppState>
-    /// let stream = store.to_stream();
-    /// tokio::spawn(async move {
-    ///     stream.for_each(|state| {
-    ///         println!("State updated: {:?}", state);
-    ///         futures_util::future::ready(())
-    ///     }).await;
-    /// });
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: i32,
+    /// }
+    /// impl State for TestState {}
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num:0});
+    ///     let stream = store.to_stream();
+    ///     tokio::spawn(async move {
+    ///         stream
+    ///             .stop_if(|state|{state.num>1})
+    ///             .for_each(|state| {
+    ///             println!("State updated: {:?}", state);
+    ///             futures::future::ready(())
+    ///         }).await;
+    ///     });
+    ///    Ok(())
+    /// }
     /// ```
     pub fn to_stream(&self) -> SignalStream<MutableSignalCloned<S>> {
         self.state.signal_cloned().to_stream()
@@ -120,12 +135,26 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState>
-    /// store.set_state(|state| {
-    ///     let mut new_state = state.clone();
-    ///     new_state.counter += 1;
-    ///     new_state
-    /// }).expect("Failed to update state");
+    /// use easerx::{State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: i32,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: i32) -> Self {
+    ///       Self { num, ..self }
+    ///     }
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num:0});
+    ///     store.set_state(|state| {
+    ///         state.set_num(10)
+    ///     })?;
+    ///    Ok(())
+    /// }
     /// ```
     ///
     /// ## Errors
@@ -148,10 +177,21 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState>
-    /// store.with_state(|state| {
-    ///     println!("Current counter value: {}", state.counter);
-    /// }).expect("Failed to access state");
+    /// use easerx::{State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: i32,
+    /// }
+    /// impl State for TestState {}
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num:0});
+    ///     store.with_state(|state| {
+    ///         println!("Current counter value: {}", state.num);
+    ///     })?;
+    ///    Ok(())
+    /// }
     /// ```
     ///
     /// ## Errors
@@ -182,9 +222,20 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState>
-    /// let state = store.await_state().await.expect("Failed to get state");
-    /// println!("Current counter value: {}", state.counter);
+    /// use easerx::{State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: i32,
+    /// }
+    /// impl State for TestState {}
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num:0});
+    ///     let state = store.await_state().await;
+    ///     println!("Current state: {:?}", state);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// ## Errors
@@ -397,14 +448,32 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
-    /// store.execute(
-    ///     || "Hello, World!".to_string(),
-    ///     |mut state, result| {
-    ///         state.data = result;
-    ///         state
+    /// use easerx::{Async, State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
     ///     }
-    /// );
+    /// }
+    /// fn computation() -> Option<i32> {
+    ///     Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     store.execute(
+    ///         || computation(),
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
+    ///   Ok(())
+    /// }
     /// ```
     pub fn execute<T, R, F, U>(
         &self,
@@ -433,15 +502,33 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
-    /// store.execute_with_retain(
-    ///     || "Updated data".to_string(),
-    ///     |state| &state.data,
-    ///     |mut state, result| {
-    ///         state.data = result;
-    ///         state
+    /// use easerx::{Async, State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
     ///     }
-    /// );
+    /// }
+    /// fn computation() -> Option<i32> {
+    ///     Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     store.execute_with_retain(
+    ///         || computation(),
+    ///         |state| &state.num,
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
+    ///   Ok(())
+    /// }
     /// ```
     pub fn execute_with_retain<T, R, F, G, U>(
         &self,
@@ -473,23 +560,45 @@ impl<S: State> StateStore<S> {
     ///
     /// ```rust
     /// use tokio_util::sync::CancellationToken;
+    /// use easerx::{Async, State, StateStore};
     ///
-    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
-    /// let token = CancellationToken::new();
-    /// let handle = store.execute_cancellable(
-    ///     token.clone(),
-    ///     |token| {
-    ///         // Check token.is_cancelled() periodically if the operation is long-running
-    ///         "Result data".to_string()
-    ///     },
-    ///     |mut state, result| {
-    ///         state.data = result;
-    ///         state
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
     ///     }
-    /// );
+    /// }
+    /// fn computation(token:CancellationToken) -> Option<i32> {
+    ///     for i in 0..1000 {
+    ///         if token.is_cancelled() {
+    ///             return None;
+    ///         }
+    ///     }
+    ///    Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     let token = CancellationToken::new();
+    ///     let handle = store.execute_cancellable(
+    ///         token.clone(),
+    ///         |token| {
+    ///             // Check token.is_cancelled() periodically if the operation is long-running
+    ///             computation(token)
+    ///         },
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
     ///
-    /// // To cancel the operation:
-    /// // token.cancel();
+    ///     // To cancel the operation:
+    ///     token.cancel();
+    ///     Ok(())
+    /// }
     /// ```
     pub fn execute_cancellable<T, R, F, U>(
         &self,
@@ -653,17 +762,35 @@ impl<S: State> StateStore<S> {
     /// ## Examples
     ///
     /// ```rust
-    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<Vec<String>>
-    /// store.async_execute(
-    ///     async {
-    ///         // Fetch data from a database or API
-    ///         vec!["Item 1".to_string(), "Item 2".to_string()]
-    ///     },
-    ///     |mut state, result| {
-    ///         state.data = result;
-    ///         state
+    /// use easerx::{Async, State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
     ///     }
-    /// );
+    /// }
+    /// async fn computation() -> Option<i32> {
+    ///     Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     store.async_execute(
+    ///         async {
+    ///             // Fetch data from a database or API
+    ///             computation().await
+    ///         },
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
+    ///   Ok(())
+    /// }
     /// ```
     pub fn async_execute<T, R, F, U>(
         &self,
@@ -766,20 +893,37 @@ impl<S: State> StateStore<S> {
     ///
     /// ```rust
     /// use std::time::Duration;
+    /// use easerx::{Async, State, StateStore};
     ///
-    /// // Assuming store is a StateStore<AppState> and AppState has a data field of type Async<String>
-    /// store.async_execute_with_timeout(
-    ///     async {
-    ///         // Some potentially slow operation
-    ///         tokio::time::sleep(Duration::from_millis(100)).await;
-    ///         "Result data".to_string()
-    ///     },
-    ///     Duration::from_secs(1), // 1 second timeout
-    ///     |mut state, result| {
-    ///         state.data = result;
-    ///         state
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
     ///     }
-    /// );
+    /// }
+    /// fn computation() -> Option<i32> {
+    ///     Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     store.async_execute_with_timeout(
+    ///         async {
+    ///             // Some potentially slow operation
+    ///             tokio::time::sleep(Duration::from_millis(100)).await;
+    ///             computation()
+    ///         },
+    ///         Duration::from_secs(1), // 1 second timeout
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
+    ///   Ok(())
+    /// }
     /// ```
     pub fn async_execute_with_timeout<T, R, F, U>(
         &self,
@@ -813,6 +957,43 @@ impl<S: State> StateStore<S> {
     ///
     /// This method runs the provided computation in a blocking task with a timeout,
     /// and if the timeout is reached, the state will be updated with `Async::Fail` with a timeout error.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use easerx::{Async, State, StateStore};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct TestState {
+    ///    num: Async<i32>,
+    /// }
+    /// impl State for TestState {}
+    /// impl TestState{
+    ///     fn set_num(self, num: Async<i32>) -> Self {
+    ///       Self { num, ..self }
+    ///     }
+    /// }
+    /// fn computation() -> Option<i32> {
+    ///     Some(888)
+    /// }
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let store = StateStore::new(TestState{num: Async::default()});
+    ///     store.execute_with_timeout(
+    ///         || {
+    ///            // Some potentially slow operation
+    ///             std::thread::sleep(Duration::from_millis(100));
+    ///             computation()
+    ///         },
+    ///         Duration::from_secs(1), // 1 second timeout
+    ///         |state, result| {
+    ///             state.set_num(result)
+    ///         }
+    ///     );
+    ///   Ok(())
+    /// }
+    /// ```
     pub fn execute_with_timeout<T, R, F, U>(
         &self,
         computation: F,

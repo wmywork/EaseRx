@@ -26,25 +26,45 @@
 //! asynchronous, cancellable, and operations with timeout.
 //!
 //! ```
-//! # use easerx::{StateStore, State, Async};
-//! # #[derive(Clone)]
-//! # struct AppState { counter: i32, data: Async<String> }
-//! # impl State for AppState {}
-//! let store = StateStore::new(AppState { counter: 0, data: Async::Uninitialized });
+//! use futures_signals::signal::SignalExt;
+//! use easerx::{StateStore, State, Async};
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct AppState { num: i32, data: Async<String> }
+//! impl State for AppState {}
+//!
+//! impl AppState{
+//!     fn set_num(self, num: i32) -> Self {
+//!       Self { num, ..self }
+//!     }
+//!    fn set_data(self, data: Async<String>) -> Self {
+//!      Self { data , ..self}
+//!    }
+//! }
+//! #[tokio::main]
+//! async fn main()-> Result<(), Box<dyn std::error::Error>> {
+//! let store = StateStore::new(AppState { num: 0, data: Async::Uninitialized });
 //!
 //! // Update state
 //! store.set_state(|state| {
-//!     state.add_count(1)
-//! });
+//!     state.set_num(1)
+//! })?;
 //!
 //! // Execute an operation that updates state
 //! store.execute(
-//!     || computation(),
+//!     || "example computation".to_string(),
 //!     |state, result| {
 //!         state.set_data(result)
 //!     }
 //! );
-//! # fn computation() -> String { "test".to_string() }
+//!
+//! store.to_signal()
+//!     .stop_if(|state| {state.data.is_complete()})
+//!     .for_each(|state| {
+//!         println!("state: {:?}", state);
+//!         async {}
+//!     }).await;
+//! Ok(())
+//!}
 //! ```
 //!
 //! ### Async State Representation
