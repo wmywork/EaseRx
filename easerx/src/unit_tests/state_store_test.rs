@@ -1,3 +1,4 @@
+use crate::AsyncError::Error;
 use crate::unit_tests::TestState;
 use crate::{Async, AsyncError, StateStore};
 use futures::stream::StreamExt;
@@ -41,6 +42,21 @@ async fn test_set_state() -> Result<(), AsyncError> {
     Ok(())
 }
 
+#[tokio::test]
+async fn test_set_state_panic() -> Result<(), AsyncError> {
+    let store = StateStore::new(TestState::default());
+
+    // Update state synchronously
+    store.set_state(|_state| {
+        panic!("set_state panic");
+        _state.add_count(10)
+    })?;
+
+    let state = store.await_state().await;
+    assert_eq!(state, Err(Error("channel closed".to_string())));
+    Ok(())
+}
+
 // Test with_state functionality
 #[tokio::test]
 async fn test_with_state() -> Result<(), AsyncError> {
@@ -50,6 +66,22 @@ async fn test_with_state() -> Result<(), AsyncError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     store.with_state(move |state| {
         let _ = tx.send(state.count);
+    })?;
+
+    let counter = rx.await.unwrap();
+    assert_eq!(counter, 100);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_with_state_panic() -> Result<(), AsyncError> {
+    let store = StateStore::new(TestState::default());
+    store.set_state(|state| state.add_count(100))?;
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    store.with_state(move |state| {
+        let _ = tx.send(state.count);
+        panic!("This should not panic");
     })?;
 
     let counter = rx.await.unwrap();

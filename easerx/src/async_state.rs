@@ -141,27 +141,6 @@ impl<T: Clone> Async<T> {
         self
     }
 
-    pub fn cancelled_with_retain(&self) -> Self {
-        let retained_value: Option<T> = self.value_ref_clone();
-        Async::fail_with_cancelled(retained_value)
-    }
-
-    pub fn success_or_fail_with_retain<'a, F>(self, async_state_getter: F) -> Self
-    where
-        T: 'a,
-        F: FnOnce() -> &'a Async<T>,
-    {
-        match self {
-            Async::Success { value } => Async::success(value),
-            Async::Fail { error, .. } => {
-                let result = async_state_getter();
-                let retained_value: Option<T> = result.value_ref_clone();
-                Async::fail(error, retained_value)
-            }
-            other => other,
-        }
-    }
-
     pub fn loading(value: Option<T>) -> Self {
         Async::Loading(value)
     }
