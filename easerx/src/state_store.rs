@@ -165,7 +165,7 @@ impl<S: State> StateStore<S> {
         let set_state_tx = self.set_state_tx.clone();
         let updater_loading = state_updater.clone();
         tokio::task::spawn(async move {
-            match (cancellation_token.clone(), state_getter.clone()) {
+            match (cancellation_token, state_getter) {
                 (Some(token), Some(getter)) => {
                     // If we have a getter and a cancellation token, we can update the state to loading with the retained value
                     let getter_loading = getter.clone();
@@ -318,6 +318,22 @@ impl<S: State> StateStore<S> {
         );
     }
 
+    async fn run_async_computation_cancelable<T, R, F>(
+        computation: F,
+        token: CancellationToken,
+    ) -> Async<T>
+    where
+        T: Clone + Send + 'static,
+        R: ExecutionResult<T> + Send + 'static,
+        F: Future<Output = R> + Send + 'static,
+    {
+        tokio::select! {
+            biased;
+            _ = token.cancelled() => Async::fail_with_cancelled(None),
+            result = computation => result.into_async(),
+        }
+    }
+
     fn execute_async_core<T, R, F, U, G>(
         &self,
         computation: F,
@@ -332,58 +348,82 @@ impl<S: State> StateStore<S> {
         G: FnOnce(&S) -> &Async<T> + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
-        let set_state_tx_retained = self.set_state_tx.clone();
-        tokio::spawn(async move {
-            // Update the state to indicate loading
-            if let Some(getter) = state_getter.clone() {
-                let state_updater_clone = state_updater.clone();
-                let _ = set_state_tx_retained.send(Box::new(move |old_state| {
-                    let previous_result = getter(&old_state);
-                    let retained_value = previous_result.value_ref_clone();
-                    state_updater_clone(old_state, Async::Loading(retained_value))
-                }));
-            } else {
-                Self::update_async_state(
-                    &set_state_tx,
-                    state_updater.clone(),
-                    Async::Loading(None),
-                );
-            }
-            // Yield to allow the state to be updated before running the computation
-            tokio::task::yield_now().await;
-            // Run the computation in an async context
-            let async_result = if let Some(token) = cancellation_token.clone() {
-                let token_clone = token.clone();
-                tokio::select! {
-                    biased;
-                    _ = token_clone.cancelled() => Async::fail_with_cancelled(None),
-                    result = computation => result.into_async(),
-                }
-            } else {
-                computation.await.into_async()
-            };
-
-            let _ = set_state_tx.send(Box::new(move |old_state| {
-                let final_result = match cancellation_token {
-                    Some(token) if token.is_cancelled() => {
-                        if let Some(getter) = state_getter {
-                            let retained = getter(&old_state).value_ref_clone();
-                            Async::fail_with_cancelled(retained)
+        let updater_loading = state_updater.clone();
+        tokio::task::spawn(async move {
+            match (cancellation_token, state_getter) {
+                (Some(token), Some(getter)) => {
+                    // If we have a getter and a cancellation token, we can update the state to loading with the retained value
+                    let getter_loading = getter.clone();
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    // Yield to allow the state to be updated before running the computation
+                    tokio::task::yield_now().await;
+                    // Run the computation in a blocking context with cancellation support
+                    let async_result =
+                        Self::run_async_computation_cancelable(computation, token.clone()).await;
+                    // Send the result back to the state store
+                    let _ = set_state_tx.send(Box::new(move |old_state| {
+                        let final_result = if token.is_cancelled() {
+                            getter(&old_state).cancelled_with_retain()
                         } else {
-                            Async::fail_with_cancelled(None)
-                        }
-                    }
-                    _ => {
-                        if let Some(getter) = state_getter {
                             async_result.success_or_fail_with_retain(|| getter(&old_state))
+                        };
+                        state_updater(old_state, final_result)
+                    }));
+                },
+                (Some(token), None) => {
+                    // If we have a cancellation token but no getter, we can update the state to loading with None
+                    Self::update_async_state(
+                        &set_state_tx,
+                        state_updater.clone(),
+                        Async::Loading(None),
+                    );
+                    // Yield to allow the state to be updated before running the computation
+                    tokio::task::yield_now().await;
+                    // Run the computation in a blocking context with cancellation support
+                    let async_result =
+                        Self::run_async_computation_cancelable(computation, token.clone()).await;
+                    // Send the result back to the state store
+                    let _ = set_state_tx.send(Box::new(move |old_state| {
+                        let final_result = if token.is_cancelled() {
+                            Async::fail_with_cancelled(None)
                         } else {
                             async_result
-                        }
-                    }
-                };
-
-                state_updater(old_state, final_result)
-            }));
+                        };
+                        state_updater(old_state, final_result)
+                    }));
+                },
+                (None, Some(getter)) => {
+                    // If we have a getter but no cancellation token, we can update the state to loading with the retained value
+                    let getter_loading = getter.clone();
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    // Yield to allow the state to be updated before running the computation
+                    tokio::task::yield_now().await;
+                    // Run the computation in a blocking context without cancellation support
+                    let async_result = computation.await.into_async();
+                    // Send the result back to the state store
+                    let _ = set_state_tx.send(Box::new(move |old_state| {
+                        let final_result =
+                            async_result.success_or_fail_with_retain(|| getter(&old_state));
+                        state_updater(old_state, final_result)
+                    }));
+                },
+                (None, None) => {
+                    // If we have neither a getter nor a cancellation token, we can update the state to loading with None
+                    Self::update_async_state(
+                        &set_state_tx,
+                        state_updater.clone(),
+                        Async::Loading(None),
+                    );
+                    // Yield to allow the state to be updated before running the computation
+                    tokio::task::yield_now().await;
+                    // Run the computation in a blocking context without cancellation support
+                    let async_result = computation.await.into_async();
+                    // Send the result back to the state store
+                    let _ = set_state_tx.send(Box::new(move |old_state| {
+                        state_updater(old_state, async_result)
+                    }));
+                },
+            }
         });
     }
 
