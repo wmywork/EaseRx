@@ -34,6 +34,73 @@ async fn test_async_execute() {
     assert_eq!(state_vec[2], Async::success("Async Result".to_string()));
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_async_execute_with_computation_join_error() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute a computation that returns an error
+    store.async_execute(
+        async { "Operation 1 success".to_string() },
+        |state, async_data| state.set_async_data(async_data),
+    );
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    // Execute a computation that returns an error,this computation will joinError
+    store.async_execute(async { Err("Operation 2 fail") }, |state, async_data| {
+        state.set_async_data(async_data)
+    });
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            if state.data.is_complete() {
+                assert_eq!(
+                    state.data,
+                    Async::Success {
+                        value: "Operation 1 success".to_string()
+                    }
+                );
+            }
+            async {}
+        })
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_async_execute_cancelable_with_computation_join_error() {
+    let store = StateStore::new(TestState::default());
+    let token = CancellationToken::new();
+    // Execute a computation that returns an error
+    store.async_execute_cancellable(
+        token.clone(),
+        async |_| "Operation 1 success".to_string(),
+        |state, async_data| state.set_async_data(async_data),
+    );
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    // Execute a computation that returns an error,this computation will joinError
+    store.async_execute_cancellable(
+        token.clone(),
+        async |_| Err("Operation 2 fail"),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            if state.data.is_complete() {
+                assert_eq!(
+                    state.data,
+                    Async::Success {
+                        value: "Operation 1 success".to_string()
+                    }
+                );
+            }
+            async {}
+        })
+        .await;
+}
+
 // Test async execute with error
 #[tokio::test]
 async fn test_async_execute_with_error() {
@@ -228,7 +295,6 @@ async fn test_async_execute_cancellable_cancel_inner() {
         |state, async_data| state.set_async_data(async_data),
     );
 
-
     let mut state_vec = Vec::new();
     store
         .to_signal()
@@ -253,9 +319,7 @@ async fn test_async_execute_cancellable_cancel_outer() {
     // Execute a cancellable computation
     store.async_execute_cancellable(
         token.clone(),
-        |_| async move {
-            "Result".to_string()
-        },
+        |_| async move { "Result".to_string() },
         |state, async_data| state.set_async_data(async_data),
     );
 

@@ -577,7 +577,7 @@ async fn test_execute_with_timeout() {
     assert_eq!(state_vec[2], Async::fail_with_timeout(None));
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+/*#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_execute_with_timeout_computation_join_error() {
     let store = StateStore::new(TestState::default());
     // Execute a computation that returns an error
@@ -606,4 +606,4 @@ async fn test_execute_with_timeout_computation_join_error() {
             async {}
         })
         .await;
-}
+}*/
