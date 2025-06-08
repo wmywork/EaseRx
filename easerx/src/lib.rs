@@ -1,3 +1,7 @@
+//! # EaseRX
+//! EaseRx is a reactive Model-View-Intent (MVI) framework for Rust, 
+//! designed to reduce the mental overhead of asynchronous programming while providing an intuitive state management solution.
+
 mod async_state;
 mod state_store;
 mod execution_result;
@@ -8,7 +12,6 @@ pub use async_state::*;
 pub use state_store::*;
 pub use execution_result::*;
 pub use stream_ext::*;
-
 
 pub trait State: Clone + Send + Sync + 'static {}
 

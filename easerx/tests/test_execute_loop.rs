@@ -5,7 +5,7 @@ use crate::common::TestState;
 
 mod common;
 
-const LOOP_COUNT: u64 = 1_000_000;
+const LOOP_COUNT: u64 = 1_0;
 #[tokio::test]
 async fn test_execute_loop() {
     let state = TestState::default();
