@@ -1,4 +1,4 @@
-use crate::unit_tests::{TestState};
+use crate::unit_tests::TestState;
 use crate::{Async, AsyncError, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::{Arc, RwLock};
@@ -35,6 +35,74 @@ async fn test_execute() {
             value: "Hello, World!".to_string()
         }
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_execute_with_computation_join_error() {
+    let store = StateStore::new(TestState::default());
+
+    // Execute a computation that returns an error
+    store.execute(
+        || "Operation 1 success".to_string(),
+        |state, async_data| state.set_async_data(async_data),
+    );
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    // Execute a computation that returns an error,this computation will joinError
+    store.execute(
+        || Err("Operation 2 fail"),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            if state.data.is_complete() {
+                assert_eq!(
+                    state.data,
+                    Async::Success {
+                        value: "Operation 1 success".to_string()
+                    }
+                );
+            }
+            async {}
+        })
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_execute_cancelable_with_computation_join_error() {
+    let store = StateStore::new(TestState::default());
+    let token = CancellationToken::new();
+    // Execute a computation that returns an error
+    store.execute_cancellable(
+        token.clone(),
+        |_| "Operation 1 success".to_string(),
+        |state, async_data| state.set_async_data(async_data),
+    );
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    // Execute a computation that returns an error,this computation will joinError
+    store.execute_cancellable(
+        token.clone(),
+        |_| Err("Operation 2 fail"),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            if state.data.is_complete() {
+                assert_eq!(
+                    state.data,
+                    Async::Success {
+                        value: "Operation 1 success".to_string()
+                    }
+                );
+            }
+            async {}
+        })
+        .await;
 }
 
 // Test execute with error
@@ -507,4 +575,35 @@ async fn test_execute_with_timeout() {
     assert_eq!(state_vec[0], Async::Uninitialized);
     assert_eq!(state_vec[1], Async::Loading(None));
     assert_eq!(state_vec[2], Async::fail_with_timeout(None));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_execute_with_timeout_computation_join_error() {
+    let store = StateStore::new(TestState::default());
+    // Execute a computation that returns an error
+    store.execute_with_timeout(
+        || Err("Operation 1 fail".to_string()),
+        Duration::from_millis(1000),
+        |state, async_data| state.set_async_data(async_data),
+    );
+    // Execute a computation that returns an error,this computation will joinError
+    store.execute_with_timeout(
+        || "Operation 2 success".to_string(),
+        Duration::from_millis(1000),
+        |state, async_data| state.set_async_data(async_data),
+    );
+
+    store
+        .to_signal()
+        .stop_if(|state| state.data.is_complete())
+        .for_each(|state| {
+            if state.data.is_complete() {
+                assert_eq!(
+                    state.data,
+                    Async::fail_with_message("Operation 1 fail".to_string(), None)
+                );
+            }
+            async {}
+        })
+        .await;
 }
