@@ -1,10 +1,9 @@
-use crate::Async;
 use crate::ExecutionResult;
 use crate::State;
+use crate::{Async, AsyncError};
 use futures_signals::signal::{Mutable, MutableSignalCloned, SignalExt, SignalStream};
-use std::fmt::Debug;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::oneshot::error::RecvError;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 pub struct StateStore<S: State> {
@@ -62,57 +61,71 @@ impl<S: State> StateStore<S> {
         self.state.signal_cloned()
     }
 
-    pub fn set_state<F>(&self, reducer: F)
+    pub fn set_state<F>(&self, reducer: F) -> Result<(), AsyncError>
     where
         F: FnOnce(S) -> S + Send + 'static,
     {
-        let _ = self.set_state_tx.send(Box::new(reducer));
+        self.set_state_tx
+            .send(Box::new(reducer))
+            .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
-    pub fn with_state<F>(&self, action: F)
+    pub fn with_state<F>(&self, action: F) -> Result<(), AsyncError>
     where
         F: FnOnce(S) + Send + 'static,
     {
-        let _ = self.with_state_tx.send(Box::new(action));
+        self.with_state_tx
+            .send(Box::new(action))
+            .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
     pub fn get_state(&self) -> S {
         self.state.get_cloned()
     }
 
-    pub async fn await_state(&self) -> Result<S, RecvError> {
+    pub async fn await_state(&self) -> Result<S, AsyncError> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let _ = self.with_state_tx.send(Box::new(|state| {
+        let send_result = self.with_state_tx.send(Box::new(|state| {
             let _ = tx.send(state);
         }));
-        rx.await
+        if let Err(e) = send_result {
+            Err(AsyncError::Error(e.to_string()))
+        } else {
+            rx.await.map_err(|e| AsyncError::Error(e.to_string()))
+        }
     }
 
     fn update_async_state<T>(
         set_state_tx: &UnboundedSender<Box<dyn FnOnce(S) -> S + Send>>,
         state_updater: impl FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
         async_state: Async<T>,
-    ) where
+    ) -> Result<(), AsyncError>
+    where
         T: Send + Clone + 'static,
     {
-        let _ = set_state_tx.send(Box::new(move |old_state| {
-            state_updater(old_state, async_state)
-        }));
+        set_state_tx
+            .send(Box::new(move |old_state| {
+                state_updater(old_state, async_state)
+            }))
+            .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
     fn set_loading_with_retain<T, G>(
         set_state_tx: &UnboundedSender<Box<dyn FnOnce(S) -> S + Send>>,
         state_updater: impl FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
         state_getter: G,
-    ) where
+    ) -> Result<(), AsyncError>
+    where
         T: Send + Clone + 'static,
         G: FnOnce(&S) -> &Async<T> + Clone + Send + 'static,
     {
-        let _ = set_state_tx.send(Box::new(move |old_state| {
-            let previous_result = state_getter(&old_state);
-            let retained_value = previous_result.value_ref_clone();
-            state_updater(old_state, Async::Loading(retained_value))
-        }));
+        set_state_tx
+            .send(Box::new(move |old_state| {
+                let previous_result = state_getter(&old_state);
+                let retained_value = previous_result.value_ref_clone();
+                state_updater(old_state, Async::Loading(retained_value))
+            }))
+            .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
     async fn run_computation_cancelable<T, R, F>(
@@ -155,7 +168,8 @@ impl<S: State> StateStore<S> {
         state_updater: U,
         state_getter: Option<G>,
         cancellation_token: Option<CancellationToken>,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: FnOnce(Option<CancellationToken>) -> R + Send + 'static,
@@ -169,21 +183,23 @@ impl<S: State> StateStore<S> {
                 (Some(token), Some(getter)) => {
                     // If we have a getter and a cancellation token, we can update the state to loading with the retained value
                     let getter_loading = getter.clone();
-                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading)?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context with cancellation support
                     let async_result =
                         Self::run_computation_cancelable(computation, token.clone()).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result = if token.is_cancelled() {
-                            getter(&old_state).cancelled_with_retain()
-                        } else {
-                            async_result.success_or_fail_with_retain(|| getter(&old_state))
-                        };
-                        state_updater(old_state, final_result)
-                    }));
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result = if token.is_cancelled() {
+                                getter(&old_state).cancelled_with_retain()
+                            } else {
+                                async_result.success_or_fail_with_retain(|| getter(&old_state))
+                            };
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
                 }
                 (Some(token), None) => {
                     // If we have a cancellation token but no getter, we can update the state to loading with None
@@ -191,36 +207,40 @@ impl<S: State> StateStore<S> {
                         &set_state_tx,
                         state_updater.clone(),
                         Async::Loading(None),
-                    );
+                    )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context with cancellation support
                     let async_result =
                         Self::run_computation_cancelable(computation, token.clone()).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result = if token.is_cancelled() {
-                            Async::fail_with_cancelled(None)
-                        } else {
-                            async_result
-                        };
-                        state_updater(old_state, final_result)
-                    }));
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result = if token.is_cancelled() {
+                                Async::fail_with_cancelled(None)
+                            } else {
+                                async_result
+                            };
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
                 }
                 (None, Some(getter)) => {
                     // If we have a getter but no cancellation token, we can update the state to loading with the retained value
                     let getter_loading = getter.clone();
-                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading)?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context without cancellation support
                     let async_result = Self::run_computation(computation).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result =
-                            async_result.success_or_fail_with_retain(|| getter(&old_state));
-                        state_updater(old_state, final_result)
-                    }));
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result =
+                                async_result.success_or_fail_with_retain(|| getter(&old_state));
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
                 }
 
                 (None, None) => {
@@ -229,21 +249,27 @@ impl<S: State> StateStore<S> {
                         &set_state_tx,
                         state_updater.clone(),
                         Async::Loading(None),
-                    );
+                    )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context without cancellation support
                     let async_result = Self::run_computation(computation).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        state_updater(old_state, async_result)
-                    }));
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            state_updater(old_state, async_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
                 }
             }
-        });
+        })
     }
 
-    pub fn execute<T, R, F, U>(&self, computation: F, state_updater: U)
+    pub fn execute<T, R, F, U>(
+        &self,
+        computation: F,
+        state_updater: U,
+    ) -> JoinHandle<Result<(), AsyncError>>
     where
         T: Send + Clone + 'static,
         R: ExecutionResult<T> + Send + 'static,
@@ -255,7 +281,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             None::<fn(&S) -> &Async<T>>,
             None,
-        );
+        )
     }
 
     pub fn execute_with_retain<T, R, F, G, U>(
@@ -263,7 +289,8 @@ impl<S: State> StateStore<S> {
         computation: F,
         state_getter: G,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: FnOnce() -> R + Send + 'static,
@@ -275,7 +302,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             Some(state_getter),
             None,
-        );
+        )
     }
 
     pub fn execute_cancellable<T, R, F, U>(
@@ -283,7 +310,8 @@ impl<S: State> StateStore<S> {
         cancellation_token: CancellationToken,
         computation: F,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: FnOnce(CancellationToken) -> R + Send + 'static,
@@ -294,7 +322,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             None::<fn(&S) -> &Async<T>>,
             Some(cancellation_token),
-        );
+        )
     }
 
     pub fn execute_cancellable_with_retain<T, R, F, U, G>(
@@ -303,7 +331,8 @@ impl<S: State> StateStore<S> {
         computation: F,
         state_getter: G,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: FnOnce(CancellationToken) -> R + Send + 'static,
@@ -315,7 +344,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             Some(state_getter),
             Some(cancellation_token),
-        );
+        )
     }
 
     async fn run_async_computation_cancelable<T, R, F>(
@@ -340,7 +369,8 @@ impl<S: State> StateStore<S> {
         state_updater: U,
         state_getter: Option<G>,
         cancellation_token: Option<CancellationToken>,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: Future<Output = R> + Send + 'static,
@@ -354,80 +384,92 @@ impl<S: State> StateStore<S> {
                 (Some(token), Some(getter)) => {
                     // If we have a getter and a cancellation token, we can update the state to loading with the retained value
                     let getter_loading = getter.clone();
-                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading)?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context with cancellation support
                     let async_result =
                         Self::run_async_computation_cancelable(computation, token.clone()).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result = if token.is_cancelled() {
-                            getter(&old_state).cancelled_with_retain()
-                        } else {
-                            async_result.success_or_fail_with_retain(|| getter(&old_state))
-                        };
-                        state_updater(old_state, final_result)
-                    }));
-                },
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result = if token.is_cancelled() {
+                                getter(&old_state).cancelled_with_retain()
+                            } else {
+                                async_result.success_or_fail_with_retain(|| getter(&old_state))
+                            };
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
+                }
                 (Some(token), None) => {
                     // If we have a cancellation token but no getter, we can update the state to loading with None
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
                         Async::Loading(None),
-                    );
+                    )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context with cancellation support
                     let async_result =
                         Self::run_async_computation_cancelable(computation, token.clone()).await;
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result = if token.is_cancelled() {
-                            Async::fail_with_cancelled(None)
-                        } else {
-                            async_result
-                        };
-                        state_updater(old_state, final_result)
-                    }));
-                },
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result = if token.is_cancelled() {
+                                Async::fail_with_cancelled(None)
+                            } else {
+                                async_result
+                            };
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
+                }
                 (None, Some(getter)) => {
                     // If we have a getter but no cancellation token, we can update the state to loading with the retained value
                     let getter_loading = getter.clone();
-                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading);
+                    Self::set_loading_with_retain(&set_state_tx, updater_loading, getter_loading)?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context without cancellation support
                     let async_result = computation.await.into_async();
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        let final_result =
-                            async_result.success_or_fail_with_retain(|| getter(&old_state));
-                        state_updater(old_state, final_result)
-                    }));
-                },
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            let final_result =
+                                async_result.success_or_fail_with_retain(|| getter(&old_state));
+                            state_updater(old_state, final_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
+                }
                 (None, None) => {
                     // If we have neither a getter nor a cancellation token, we can update the state to loading with None
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
                         Async::Loading(None),
-                    );
+                    )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
                     // Run the computation in a blocking context without cancellation support
                     let async_result = computation.await.into_async();
                     // Send the result back to the state store
-                    let _ = set_state_tx.send(Box::new(move |old_state| {
-                        state_updater(old_state, async_result)
-                    }));
-                },
+                    set_state_tx
+                        .send(Box::new(move |old_state| {
+                            state_updater(old_state, async_result)
+                        }))
+                        .map_err(|e| AsyncError::Error(e.to_string()))
+                }
             }
-        });
+        })
     }
 
-    pub fn async_execute<T, R, F, U>(&self, computation: F, state_updater: U)
+    pub fn async_execute<T, R, F, U>(
+        &self,
+        computation: F,
+        state_updater: U,
+    ) -> JoinHandle<Result<(), AsyncError>>
     where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
@@ -439,7 +481,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             None::<fn(&S) -> &Async<T>>,
             None,
-        );
+        )
     }
 
     pub fn async_execute_with_retain<T, R, F, G, U>(
@@ -447,14 +489,15 @@ impl<S: State> StateStore<S> {
         computation: F,
         state_getter: G,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: Future<Output = R> + Send + 'static,
         G: FnOnce(&S) -> &Async<T> + Clone + Send + 'static,
         U: FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
     {
-        self.execute_async_core(computation, state_updater, Some(state_getter), None);
+        self.execute_async_core(computation, state_updater, Some(state_getter), None)
     }
 
     pub fn async_execute_cancellable<T, R, F, U, Fut>(
@@ -462,7 +505,8 @@ impl<S: State> StateStore<S> {
         cancellation_token: CancellationToken,
         computation: F,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         Fut: Future<Output = R> + Send + 'static,
@@ -474,7 +518,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             None::<fn(&S) -> &Async<T>>,
             Some(cancellation_token),
-        );
+        )
     }
 
     pub fn async_execute_cancellable_with_retain<T, R, F, U, Fut, G>(
@@ -483,7 +527,8 @@ impl<S: State> StateStore<S> {
         computation: F,
         state_getter: G,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>>
+    where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         Fut: Future<Output = R> + Send + 'static,
@@ -496,7 +541,7 @@ impl<S: State> StateStore<S> {
             state_updater,
             Some(state_getter),
             Some(cancellation_token),
-        );
+        )
     }
 
     pub fn async_execute_with_timeout<T, R, F, U>(
@@ -504,16 +549,16 @@ impl<S: State> StateStore<S> {
         computation: F,
         timeout: std::time::Duration,
         state_updater: U,
-    ) where
-        T: Clone + Send + 'static + Debug,
-        R: ExecutionResult<T> + Send + 'static + Debug,
+    ) -> JoinHandle<Result<(), AsyncError>> where
+        T: Clone + Send + 'static,
+        R: ExecutionResult<T> + Send + 'static,
         F: Future<Output = R> + Send + 'static,
         U: FnOnce(S, Async<T>) -> S + Clone + Send + 'static,
     {
         let set_state_tx = self.set_state_tx.clone();
         tokio::spawn(async move {
             // Update the state to indicate loading
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None))?;
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation with a timeout
@@ -522,8 +567,8 @@ impl<S: State> StateStore<S> {
                 Ok(result) => result.into_async(),
                 Err(_) => Async::fail_with_timeout(None),
             };
-            Self::update_async_state(&set_state_tx, state_updater, async_result);
-        });
+            Self::update_async_state(&set_state_tx, state_updater, async_result)
+        })
     }
 
     pub fn execute_with_timeout<T, R, F, U>(
@@ -531,7 +576,7 @@ impl<S: State> StateStore<S> {
         computation: F,
         timeout: std::time::Duration,
         state_updater: U,
-    ) where
+    ) -> JoinHandle<Result<(), AsyncError>> where
         T: Clone + Send + 'static,
         R: ExecutionResult<T> + Send + 'static,
         F: FnOnce() -> R + Send + 'static,
@@ -540,7 +585,7 @@ impl<S: State> StateStore<S> {
         let set_state_tx = self.set_state_tx.clone();
         tokio::spawn(async move {
             // Update the state to indicate loading
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None));
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None))?;
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation in a blocking context
@@ -554,7 +599,7 @@ impl<S: State> StateStore<S> {
                 Err(_) => Async::fail_with_timeout(None),
             };
 
-            Self::update_async_state(&set_state_tx, state_updater, async_result);
-        });
+            Self::update_async_state(&set_state_tx, state_updater, async_result)
+        })
     }
 }

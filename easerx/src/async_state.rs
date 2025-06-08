@@ -128,12 +128,24 @@ impl<T: Clone> Async<T> {
         }
     }
 
-    pub fn cancelled_with_retain(&self) -> Self
-    {
+    pub fn set_retain_value(mut self, value: Option<T>)-> Self {
+        match self {
+            Async::Loading(_) => {
+                self = Async::loading(value);
+            }
+            Async::Fail { error, .. } => {
+                self = Async::fail(error.clone(), value);
+            }
+            _ => {}
+        }
+        self
+    }
+
+    pub fn cancelled_with_retain(&self) -> Self {
         let retained_value: Option<T> = self.value_ref_clone();
         Async::fail_with_cancelled(retained_value)
     }
-    
+
     pub fn success_or_fail_with_retain<'a, F>(self, async_state_getter: F) -> Self
     where
         T: 'a,

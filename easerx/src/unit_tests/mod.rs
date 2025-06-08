@@ -11,6 +11,7 @@ mod stream_ext_test;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TestState {
+    count: i32,
     pub data: Async<String>,
 }
 
@@ -19,6 +20,7 @@ impl State for TestState {}
 impl Default for TestState {
     fn default() -> Self {
         TestState {
+            count: 0,
             data: Async::Uninitialized,
         }
     }
@@ -28,6 +30,19 @@ impl TestState {
     pub fn set_async_data(self, async_data: Async<String>) -> Self {
         Self {
             data: async_data,
+            ..self
+        }
+    }
+    fn add_count(self, value: i32) -> Self {
+        TestState {
+            count: self.count + value,
+            ..self
+        }
+    }
+
+    fn set_count(self, value: i32) -> Self {
+        TestState {
+            count: value,
             ..self
         }
     }
