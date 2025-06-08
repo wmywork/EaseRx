@@ -3,7 +3,32 @@ use std::task::{Context, Poll};
 use futures_core::stream::Stream;
 use pin_project::pin_project;
 
+/// Extension trait that provides additional utility methods for Stream types.
+///
+/// This trait is implemented for all types that implement the `Stream` trait,
+/// providing additional functionality for stream processing in the EaseRx framework.
 pub trait EaseRxStreamExt: Stream {
+    /// Creates a stream that stops producing items once the provided predicate returns true.
+    ///
+    /// This method takes a stream and a predicate function. It returns a new stream that
+    /// yields items from the original stream until the predicate returns true for an item.
+    /// After that point, the stream will terminate and no more items will be produced.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use futures_signals::signal::{Signal, SignalExt};
+    /// use futures_signals::signal_vec::SignalVecExt;
+    /// use easerx::EaseRxStreamExt;
+    ///
+    /// async fn example() {
+    ///     let stream = futures_signals::signal::always(0)
+    ///         .to_stream()
+    ///         .stop_if(|&value| value > 5);
+    ///
+    ///     // The stream will stop once it encounters a value greater than 5
+    /// }
+    /// ```
     fn stop_if<F>(self, test: F) -> StopIf<Self, F>
     where
         F: FnMut(&Self::Item) -> bool,
@@ -17,6 +42,12 @@ pub trait EaseRxStreamExt: Stream {
     }
 }
 impl<T: ?Sized> EaseRxStreamExt for T where T: Stream {}
+
+/// A stream that stops producing items once a predicate returns true.
+///
+/// This stream is created by the `stop_if` method on `EaseRxStreamExt`.
+/// It wraps an inner stream and a predicate function, yielding items from the
+/// inner stream until the predicate returns true for an item.
 #[pin_project(project = StopIfProj)]
 #[derive(Debug)]
 #[must_use = "Streams do nothing unless polled"]
