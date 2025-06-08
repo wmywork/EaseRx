@@ -98,9 +98,7 @@ async fn test_async_execute_with_none() {
 // Test async execute with retain value success
 #[tokio::test]
 async fn test_async_execute_with_retain_success() {
-    let initial_state = TestState {
-        data: Async::success("initial".to_string()),
-    };
+    let initial_state = TestState::default().set_async_data(Async::success("initial".to_string()));
 
     let store = StateStore::new(initial_state);
 
@@ -143,9 +141,7 @@ async fn test_async_execute_with_retain_success() {
 // Test async execute with retain value fail
 #[tokio::test]
 async fn test_async_execute_with_retain_fail() {
-    let initial_state = TestState {
-        data: Async::success("initial".to_string()),
-    };
+    let initial_state = TestState::default().set_async_data(Async::success("initial".to_string()));
 
     let store = StateStore::new(initial_state);
 
@@ -231,7 +227,7 @@ async fn test_async_execute_cancellable_cancel_inner() {
         },
         |state, async_data| state.set_async_data(async_data),
     );
-    
+
 
     let mut state_vec = Vec::new();
     store
@@ -284,9 +280,7 @@ async fn test_async_execute_cancellable_cancel_outer() {
 // Test async_execute_cancellable_with_retain_success
 #[tokio::test]
 async fn test_async_execute_cancellable_with_retain_success() {
-    let initial_state = TestState {
-        data: Async::success("initial".to_string()),
-    };
+    let initial_state = TestState::default().set_async_data(Async::success("initial".to_string()));
     let store = StateStore::new(initial_state);
     let token = CancellationToken::new();
 
@@ -327,9 +321,7 @@ async fn test_async_execute_cancellable_with_retain_success() {
 // Test async_execute_cancellable_with_retain_fail
 #[tokio::test]
 async fn test_async_execute_cancellable_with_retain_fail() {
-    let initial_state = TestState {
-        data: Async::success("initial".to_string()),
-    };
+    let initial_state = TestState::default().set_async_data(Async::success("initial".to_string()));
     let store = StateStore::new(initial_state);
     let token = CancellationToken::new();
 
@@ -373,9 +365,7 @@ async fn test_async_execute_cancellable_with_retain_fail() {
 // Test async_execute_cancellable_with_retain_cancel
 #[tokio::test]
 async fn test_async_execute_cancellable_with_retain_cancel() {
-    let initial_state = TestState {
-        data: Async::success("initial".to_string()),
-    };
+    let initial_state = TestState::default().set_async_data(Async::success("initial".to_string()));
     let store = StateStore::new(initial_state);
     let token = CancellationToken::new();
 
