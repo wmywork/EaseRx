@@ -169,6 +169,17 @@ impl<S: State> StateStore<S> {
             .map_err(|e| AsyncError::Error(e.to_string()))
     }
 
+    /// Updates the state by applying a reducer function.
+    ///
+    /// This method functions the same as set_state() but ignores the return value.
+    pub fn _set_state<F>(&self, reducer: F)
+    where
+        F: FnOnce(S) -> S + Send + 'static,
+    {
+        let _ = self.set_state_tx
+            .send(Box::new(reducer));
+    }
+
     /// Performs an action with the current state without modifying it.
     ///
     /// This is useful for side effects that need to read the current state
@@ -204,6 +215,17 @@ impl<S: State> StateStore<S> {
         self.with_state_tx
             .send(Box::new(action))
             .map_err(|e| AsyncError::Error(e.to_string()))
+    }
+
+    /// Performs an action with the current state without modifying it.
+    ///
+    /// This method functions the same as with_state() but ignores the return value.
+    pub fn _with_state<F>(&self, action: F)
+    where
+        F: FnOnce(S) + Send + 'static,
+    {
+        let _ = self.with_state_tx
+            .send(Box::new(action));
     }
 
     /// Returns a clone of the current state.
