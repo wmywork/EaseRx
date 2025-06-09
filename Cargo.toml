@@ -9,6 +9,21 @@ default-members = [
 ]
 members = [
     "easerx",
+    "examples/basic1_state_store",
+    "examples/basic2_multiple_states",
+    "examples/basic3_collections",
+    "examples/basic4_execute",
+    "examples/basic5_async_execute",
+    "examples/extended1_order_of_nested",
+    "examples/extended2_execute_with_retain",
+    "examples/extended3_execute_with_cancelable",
+    "examples/extended4_execute_cancelable_with_retain",
+    "examples/extended5_execute_with_timeout",
+    "examples/extended6_async_execute_with_retain",
+    "examples/extended7_async_execute_with_cancelable",
+    "examples/extended8_async_execute_cancelable_with_retain",
+    "examples/extended9_async_execute_with_timeout",
+    "examples/extended10_execution_without_blocking",
 ]
 
 [workspace.dependencies]

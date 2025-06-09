@@ -1,0 +1,15 @@
+[package]
+name = "basic5_async_execute"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+easerx = { path = "../../easerx" }
+tokio = { workspace = true, features = ["full"] }
+futures-signals = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "extended4_execute_cancelable_with_retain"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+easerx = { path = "../../easerx" }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
+futures-signals = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+
+[lints]
+workspace = true
