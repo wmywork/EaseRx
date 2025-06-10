@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     warn!("The main thread and the worker thread execute in parallel, ");
     warn!("the output of the main thread is interleaved with the output of the worker thread.");
     warn!("but the functions of the main thread and the worker thread are still executed in their respective orders");
-    
+
     info!("  Main thread | A");
 
     store.with_state(|state| {
