@@ -5,17 +5,21 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 default:
   @just --list --unsorted
 
-test:
+_test:
     cargo test -p easerx
 
-test-output:
+_test-output:
     cargo test -p easerx -- --show-output
 
-test-single-thread:
+_test-single-thread:
     cargo test -p easerx -- --test-threads=1
 
-doc:
+_doc:
     cargo doc -p easerx --no-deps --open
 
-cov:
+_cov:
     cargo llvm-cov -p easerx --html
+
+# demo ratatui
+ratatui:
+    cargo run -p demo_ratatui

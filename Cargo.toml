@@ -25,6 +25,7 @@ members = [
     "examples/extended9_async_execute_with_timeout",
     "examples/extended10_execution_without_blocking",
     "examples/demo_simple_todo",
+    "examples/demo_ratatui",
 ]
 
 [workspace.dependencies]
