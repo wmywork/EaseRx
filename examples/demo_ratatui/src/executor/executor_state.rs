@@ -1,5 +1,5 @@
-use throbber_widgets_tui::ThrobberState;
 use easerx::{Async, State};
+use throbber_widgets_tui::ThrobberState;
 
 #[derive(Clone, Debug)]
 pub struct ExecutorState {

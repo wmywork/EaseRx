@@ -1,5 +1,6 @@
 use crate::tracing_setup::tracing_init;
-use easerx::{Async, AsyncError, State, StateStore};
+use easerx::AsyncError;
+use easerx::{Async, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
 use std::time::Duration;

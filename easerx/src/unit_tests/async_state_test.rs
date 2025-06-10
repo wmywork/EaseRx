@@ -1,4 +1,5 @@
-use crate::{Async, AsyncError};
+use crate::Async;
+use crate::async_error::AsyncError;
 
 #[test]
 fn test_uninitialized() {

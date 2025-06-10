@@ -101,9 +101,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| {
-             state.num.is_fail_with_canceled()
-        })
+        .stop_if(|state| state.num.is_fail_with_canceled())
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

@@ -66,9 +66,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| {
-            state.num.is_fail_with_timeout()
-        })
+        .stop_if(|state| state.num.is_fail_with_timeout())
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

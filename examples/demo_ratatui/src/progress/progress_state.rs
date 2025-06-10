@@ -1,5 +1,5 @@
-use ratatui::prelude::Color;
 use easerx::State;
+use ratatui::prelude::Color;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProgressState {

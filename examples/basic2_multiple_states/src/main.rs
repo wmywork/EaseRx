@@ -1,11 +1,12 @@
-use futures_signals::signal::SignalExt;
-use futures_signals::map_ref;
 use crate::tracing_setup::tracing_init;
-use easerx::{State, StateStore, combine_state_flow, AsyncError};
+use easerx::AsyncError;
+use easerx::{State, StateStore, combine_state_flow};
+use futures::StreamExt;
+use futures_signals::map_ref;
+use futures_signals::signal::SignalExt;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
-use futures::StreamExt;
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
@@ -25,7 +26,6 @@ impl Counter {
         }
     }
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -55,11 +55,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     info!("  Main thread | combine state flow");
-    let state_flow = combine_state_flow!{store1.to_signal(), store2.to_signal()};
+    let state_flow = combine_state_flow! {store1.to_signal(), store2.to_signal()};
     state_flow
-        .stop_if(|(state1, state2)| {
-            state1.count >= 11 && state2.count >= 12
-        })
+        .stop_if(|(state1, state2)| state1.count >= 11 && state2.count >= 12)
         .for_each(|(state1, state2)| async move {
             info!(
                 "  Main thread | state1: {:?} , state2: {:?}",
@@ -91,9 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some((state1, state2)) = state_stream.next().await {
             debug!(
-            "Worker thread | state1: {:?} , state2: {:?}",
-            state1, state2
-        );
+                "Worker thread | state1: {:?} , state2: {:?}",
+                state1, state2
+            );
             if state1.count >= 111 && state2.count >= 112 {
                 break;
             }

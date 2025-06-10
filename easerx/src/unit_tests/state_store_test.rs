@@ -1,9 +1,10 @@
-use crate::AsyncError::Error;
+use crate::async_error::AsyncError::Error;
 use crate::unit_tests::TestState;
-use crate::{Async, AsyncError, StateStore};
+use crate::{Async, StateStore};
 use futures::stream::StreamExt;
 use std::time::Duration;
 use tokio::time::sleep;
+use crate::async_error::AsyncError;
 
 // Test state store initialization
 #[tokio::test]

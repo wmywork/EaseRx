@@ -1,17 +1,19 @@
-use ratatui::backend::CrosstermBackend;
-use ratatui::Terminal;
-use std::io::stdout;
-use std::sync::Arc;
-use crossterm::ExecutableCommand;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crate::app::app_model::AppModel;
 use crate::tracing_setup::tracing_init;
+use crossterm::ExecutableCommand;
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
+use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
+use std::io::stdout;
+use std::sync::Arc;
 
+mod app;
 mod counter;
-mod progress;
 mod executor;
 mod input;
-mod app;
+mod progress;
 
 mod tracing_setup;
 
@@ -25,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let main_view = Arc::new(AppModel::new());
 
     main_view.run(terminal).await;
-    
+
     // Restore terminal
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;

@@ -222,7 +222,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let last_tick = Instant::now();
     for i in 0..TEST_LEN {
-        store.set_state(move |state| state.map_insert(i,i))?;
+        store.set_state(move |state| state.map_insert(i, i))?;
     }
 
     store

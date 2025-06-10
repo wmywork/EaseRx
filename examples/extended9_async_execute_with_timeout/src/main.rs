@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
-
 mod tracing_setup;
 
 #[derive(Debug, Clone, Default)]

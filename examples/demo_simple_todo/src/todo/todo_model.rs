@@ -1,5 +1,6 @@
 use crate::todo::todo_state::{Todo, TodoState};
-use easerx::{AsyncError, StateStore};
+use easerx::AsyncError;
+use easerx::StateStore;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
@@ -30,7 +31,8 @@ impl TodoModel {
     }
 
     pub fn remove_completed_todos(&self) -> Result<(), AsyncError> {
-        self.store.set_state(move |state| state.remove_completed_todos())
+        self.store
+            .set_state(move |state| state.remove_completed_todos())
     }
 
     pub fn resolve_todo(&self, index: usize) -> JoinHandle<Result<(), AsyncError>> {

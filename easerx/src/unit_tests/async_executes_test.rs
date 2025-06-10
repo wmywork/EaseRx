@@ -1,9 +1,10 @@
 use crate::unit_tests::TestState;
-use crate::{Async, AsyncError, StateStore};
+use crate::{Async, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+use crate::async_error::AsyncError;
 
 // Test async_execute
 #[tokio::test]

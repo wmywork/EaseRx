@@ -1,12 +1,12 @@
 use crate::todo::todo_model::TodoModel;
 use crate::todo::todo_view::show_todos;
 use crate::tracing_setup::tracing_init;
-use easerx::{AsyncError};
+use easerx::AsyncError;
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{info};
+use tracing::info;
 
 mod todo;
 mod tracing_setup;
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sleep(Duration::from_secs(3)).await;
         model.remove_completed_todos()?;
         sleep(Duration::from_secs(2)).await;
-        
+
         model.exit()?;
         Ok::<(), AsyncError>(())
     });

@@ -1,6 +1,6 @@
 use crate::tracing_setup::tracing_init;
 use easerx::{State, StateStore};
-use std::sync::{LazyLock};
+use std::sync::LazyLock;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
@@ -9,7 +9,7 @@ mod tracing_setup;
 
 #[derive(Debug, Clone, Default)]
 struct Counter {
-    count: i32,
+    _count: i32,
 }
 
 impl State for Counter {}
@@ -83,7 +83,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     info!("  Main thread | B");
     sleep(Duration::from_millis(100)).await;
-
 
     info!("==========================================");
     warn!("Order is : [A, B, W, S1, S2, W1, W2]");

@@ -1,6 +1,7 @@
-use crate::{AsyncError, EaseRxStreamExt, State, StateStore};
+use crate::{EaseRxStreamExt, State, StateStore};
 use futures::StreamExt;
 use std::sync::Arc;
+use crate::async_error::AsyncError;
 
 #[derive(Clone, Debug, PartialEq)]
 struct TestStreamState {

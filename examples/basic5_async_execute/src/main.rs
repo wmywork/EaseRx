@@ -1,5 +1,5 @@
 use crate::tracing_setup::tracing_init;
-use easerx::{Async,  State, StateStore};
+use easerx::{Async, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,13 +27,10 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        store_clone.async_execute(
-             heavy_computation(),
-            |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
-                Counter { num, ..state }
-            },
-        )
+        store_clone.async_execute(heavy_computation(), |state, num| {
+            debug!("Worker thread | update num: {:?}", num);
+            Counter { num, ..state }
+        })
     });
     let state_flow = store.to_signal();
     state_flow
@@ -53,13 +50,10 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        store_clone.async_execute(
-            heavy_computation_result(false),
-            |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
-                Counter { num, ..state }
-            },
-        )
+        store_clone.async_execute(heavy_computation_result(false), |state, num| {
+            debug!("Worker thread | update num: {:?}", num);
+            Counter { num, ..state }
+        })
     });
     let state_flow = store.to_signal();
     state_flow
@@ -79,13 +73,10 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        store_clone.async_execute(
-             heavy_computation_result(true),
-            |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
-                Counter { num, ..state }
-            },
-        )
+        store_clone.async_execute(heavy_computation_result(true), |state, num| {
+            debug!("Worker thread | update num: {:?}", num);
+            Counter { num, ..state }
+        })
     });
     let state_flow = store.to_signal();
     state_flow
@@ -107,13 +98,10 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        store_clone.async_execute(
-             heavy_computation_option(false),
-            |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
-                Counter { num, ..state }
-            },
-        )
+        store_clone.async_execute(heavy_computation_option(false), |state, num| {
+            debug!("Worker thread | update num: {:?}", num);
+            Counter { num, ..state }
+        })
     });
     let state_flow = store.to_signal();
     state_flow
@@ -133,13 +121,10 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        store_clone.async_execute(
-             heavy_computation_option(true),
-            |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
-                Counter { num, ..state }
-            },
-        )
+        store_clone.async_execute(heavy_computation_option(true), |state, num| {
+            debug!("Worker thread | update num: {:?}", num);
+            Counter { num, ..state }
+        })
     });
     let state_flow = store.to_signal();
     state_flow
@@ -193,4 +178,3 @@ async fn heavy_computation_option(none: bool) -> Option<u64> {
     }
     Some(i)
 }
-

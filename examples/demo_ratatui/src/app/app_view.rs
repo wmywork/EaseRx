@@ -1,11 +1,11 @@
 use crate::counter::counter_state::CounterState;
 use crate::counter::counter_view::counter_view;
+use crate::executor::executor_state::ExecutorState;
+use crate::executor::executor_view::executor_view;
 use crate::progress::progress_state::ProgressState;
 use crate::progress::progress_view::progress_view;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::executor::executor_state::ExecutorState;
-use crate::executor::executor_view::executor_view;
 
 pub fn app_view(
     frame: &mut ratatui::Frame,
@@ -20,7 +20,11 @@ pub fn app_view(
 
     let widget_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(20),Constraint::Percentage(40), Constraint::Percentage(40)])
+        .constraints([
+            Constraint::Percentage(20),
+            Constraint::Percentage(40),
+            Constraint::Percentage(40),
+        ])
         .split(main_layout[0]);
 
     let progress_widget = progress_view(progress_state);
@@ -29,7 +33,6 @@ pub fn app_view(
     frame.render_widget(counter_widget, widget_layout[1]);
     let executor_widget = executor_view(executor_state);
     frame.render_widget(executor_widget, widget_layout[2]);
-
 
     let mut lines = vec![];
     let app_instructions = Line::from(vec![
@@ -40,7 +43,7 @@ pub fn app_view(
         "reset".into(),
         " <r> ".magenta().bold(),
     ])
-        .centered();
+    .centered();
 
     let progress_instructions = Line::from(vec![
         "Progress: decrement".into(),
@@ -50,7 +53,7 @@ pub fn app_view(
         "color".into(),
         " <Up> or <Down>".cyan().bold(),
     ])
-        .centered();
+    .centered();
 
     let counter_instructions = Line::from(vec![
         "Counter: decrement".into(),
@@ -62,12 +65,9 @@ pub fn app_view(
         "stop".into(),
         " <p> ".cyan().bold(),
     ])
-        .centered();
+    .centered();
 
-    let executor_instructions = Line::from(vec![
-        "Executor: calc".into(),
-        " <c>, ".cyan().bold(),
-    ]);
+    let executor_instructions = Line::from(vec!["Executor: calc".into(), " <c>, ".cyan().bold()]);
 
     lines.push(app_instructions);
     lines.push(progress_instructions);
