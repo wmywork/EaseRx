@@ -338,7 +338,7 @@ impl<S: State> StateStore<S> {
             .send(Box::new(move |old_state| {
                 let previous_result = state_getter(&old_state);
                 let retained_value = previous_result.value_ref_clone();
-                state_updater(old_state, Async::Loading(retained_value))
+                state_updater(old_state, Async::loading(retained_value))
             }))
             .map_err(|e| AsyncError::Error(e.to_string()))
     }
@@ -408,7 +408,7 @@ impl<S: State> StateStore<S> {
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
-                        Async::Loading(None),
+                        Async::loading(None),
                     )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
@@ -449,7 +449,7 @@ impl<S: State> StateStore<S> {
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
-                        Async::Loading(None),
+                        Async::loading(None),
                     )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
@@ -726,7 +726,7 @@ impl<S: State> StateStore<S> {
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
-                        Async::Loading(None),
+                        Async::loading(None),
                     )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
@@ -763,7 +763,7 @@ impl<S: State> StateStore<S> {
                     Self::update_async_state(
                         &set_state_tx,
                         state_updater.clone(),
-                        Async::Loading(None),
+                        Async::loading(None),
                     )?;
                     // Yield to allow the state to be updated before running the computation
                     tokio::task::yield_now().await;
@@ -963,7 +963,7 @@ impl<S: State> StateStore<S> {
         let set_state_tx = self.set_state_tx.clone();
         tokio::spawn(async move {
             // Update the state to indicate loading
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None))?;
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::loading(None))?;
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation with a timeout
@@ -1032,7 +1032,7 @@ impl<S: State> StateStore<S> {
         let set_state_tx = self.set_state_tx.clone();
         tokio::spawn(async move {
             // Update the state to indicate loading
-            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::Loading(None))?;
+            Self::update_async_state(&set_state_tx, state_updater.clone(), Async::loading(None))?;
             // Yield to allow the state to be updated before running the computation
             tokio::task::yield_now().await;
             // Run the computation in a blocking context

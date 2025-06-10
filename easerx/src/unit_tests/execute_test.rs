@@ -29,7 +29,7 @@ async fn test_execute() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(
         state_vec[2],
         Async::Success {
@@ -129,7 +129,7 @@ async fn test_execute_with_error() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(
         state_vec[2],
         Async::Fail {
@@ -161,7 +161,7 @@ async fn test_execute_with_none() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::fail_with_none(None));
 }
 
@@ -201,7 +201,7 @@ async fn test_execute_with_retain_success() {
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
-    assert_eq!(state_vec[1], Async::Loading(Some("initial".to_string())));
+    assert_eq!(state_vec[1], Async::loading(Some("initial".to_string())));
     assert_eq!(state_vec[2], Async::success("success".to_string()));
 }
 
@@ -241,7 +241,7 @@ async fn test_execute_with_retain_fail() {
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
-    assert_eq!(state_vec[1], Async::Loading(Some("initial".to_string())));
+    assert_eq!(state_vec[1], Async::loading(Some("initial".to_string())));
     assert_eq!(
         state_vec[2],
         Async::fail_with_message("Operation failed", Some("initial".to_string()))
@@ -275,7 +275,7 @@ async fn test_execute_cancellable_success() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::success("success".to_string()));
 }
 
@@ -309,7 +309,7 @@ async fn test_execute_cancellable_cancel_inner() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::fail_with_cancelled(None));
 }
 
@@ -340,7 +340,7 @@ async fn test_execute_cancellable_cancel_outer() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::fail_with_cancelled(None));
 }
 
@@ -511,7 +511,7 @@ async fn test_execute_with_timeout_success() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::success("Delayed Result".to_string()));
 }
 
@@ -541,7 +541,7 @@ async fn test_execute_with_timeout_fail() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(
         state_vec[2],
         Async::fail_with_message("fail".to_string(), None)
@@ -574,7 +574,7 @@ async fn test_execute_with_timeout() {
         .await;
 
     assert_eq!(state_vec[0], Async::Uninitialized);
-    assert_eq!(state_vec[1], Async::Loading(None));
+    assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(state_vec[2], Async::fail_with_timeout(None));
 }
 

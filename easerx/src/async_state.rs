@@ -11,13 +11,13 @@ use crate::async_error::AsyncError;
 pub enum Async<T: Clone> {
     /// The initial state before any operation has been attempted.
     Uninitialized,
-    
+
     /// The operation is in progress. May optionally contain the previous value.
-    Loading(Option<T>),
-    
+    Loading { value: Option<T> },
+
     /// The operation completed successfully with a result value.
     Success { value: T },
-    
+
     /// The operation failed. Contains an error and optionally the previous value.
     Fail { error: AsyncError, value: Option<T> },
 }
@@ -39,7 +39,7 @@ impl<T: Clone> Async<T> {
     ///
     /// This is true when the state is either uninitialized or currently loading.
     pub fn is_incomplete(&self) -> bool {
-        matches!(self, Async::Uninitialized | Async::Loading(_))
+        matches!(self, Async::Uninitialized | Async::Loading { .. })
     }
 
     /// Returns true if the operation has not been started.
@@ -51,7 +51,7 @@ impl<T: Clone> Async<T> {
     pub fn is_loading(&self) -> bool {
         matches!(self, Async::Loading { .. })
     }
-    
+
     /// Returns true if the operation completed successfully.
     pub fn is_success(&self) -> bool {
         matches!(self, Async::Success { .. })
@@ -108,7 +108,7 @@ impl<T: Clone> Async<T> {
     pub fn value(self) -> Option<T> {
         match self {
             Async::Uninitialized => None,
-            Async::Loading(value) => value,
+            Async::Loading { value } => value,
             Async::Success { value, .. } => Some(value),
             Async::Fail { value, .. } => value,
         }
@@ -119,7 +119,7 @@ impl<T: Clone> Async<T> {
     /// Similar to `value()` but returns a reference instead of consuming the `Async`.
     pub fn value_ref(&self) -> Option<&T> {
         match self {
-            Async::Loading(Some(value)) => Some(&value),
+            Async::Loading { value: Some(value) } => Some(&value),
             Async::Success { value } => Some(&value),
             Async::Fail {
                 value: Some(value), ..
@@ -134,7 +134,7 @@ impl<T: Clone> Async<T> {
     /// rather than a reference.
     pub fn value_ref_clone(self: &Async<T>) -> Option<T> {
         match self {
-            Async::Loading(Some(value)) => Some(value.clone()),
+            Async::Loading { value: Some(value) } => Some(value.clone()),
             Async::Success { value } => Some(value.clone()),
             Async::Fail {
                 value: Some(value), ..
@@ -147,13 +147,13 @@ impl<T: Clone> Async<T> {
     ///
     /// This method is useful when you want to update the retained value
     /// without changing the state itself.
-    pub fn set_retain_value(mut self, value: Option<T>)-> Self {
+    pub fn set_retain_value(mut self, value: Option<T>) -> Self {
         match self {
-            Async::Loading(_) => {
+            Async::Loading { .. } => {
                 self = Async::loading(value);
             }
             Async::Fail { error, .. } => {
-                self = Async::fail(error.clone(), value);
+                self = Async::fail(error, value);
             }
             _ => {}
         }
@@ -164,7 +164,7 @@ impl<T: Clone> Async<T> {
     ///
     /// Optionally includes a retained value from a previous operation.
     pub fn loading(value: Option<T>) -> Self {
-        Async::Loading(value)
+        Async::Loading { value }
     }
 
     /// Creates a new `Async` in the `Success` state with the provided value.
@@ -176,7 +176,7 @@ impl<T: Clone> Async<T> {
     pub fn fail(error: AsyncError, value: Option<T>) -> Self {
         Async::Fail { error, value }
     }
-    
+
     /// Creates a new `Async` in the `Fail` state with a cancellation error.
     pub fn fail_with_cancelled(value: Option<T>) -> Self {
         Async::Fail {
@@ -198,7 +198,7 @@ impl<T: Clone> Async<T> {
         let error = AsyncError::Error(message.into());
         Async::Fail { error, value }
     }
-    
+
     /// Creates a new `Async` in the `Fail` state with a None error.
     pub fn fail_with_none(value: Option<T>) -> Self {
         Async::Fail {
