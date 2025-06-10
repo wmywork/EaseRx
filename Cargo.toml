@@ -24,6 +24,7 @@ members = [
     "examples/extended8_async_execute_cancelable_with_retain",
     "examples/extended9_async_execute_with_timeout",
     "examples/extended10_execution_without_blocking",
+    "examples/demo_simple_todo",
 ]
 
 [workspace.dependencies]
