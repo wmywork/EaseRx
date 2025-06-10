@@ -1,5 +1,6 @@
 use crate::app::app_model::AppModel;
 use crate::tracing_setup::tracing_init;
+use crossterm::cursor::Show;
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -31,5 +32,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Restore terminal
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
+    stdout().execute(Show)?;
     Ok(())
 }
