@@ -1,7 +1,7 @@
 [package]
 name = "extended5_execute_with_timeout"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 easerx = { path = "../../easerx" }

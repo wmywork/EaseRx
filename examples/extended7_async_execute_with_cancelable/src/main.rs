@@ -30,7 +30,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable(
             CancellationToken::new(),
-            async |_| async_heavy_computation().await,
+            |_| async { async_heavy_computation().await },
             move |state, num| {
                 debug!("Worker thread | update num: {:?}", num);
                 Counter { num, ..state }
@@ -60,7 +60,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable(
             cancellation_token,
-            async |token| async_heavy_computation_cancellable(token).await,
+            |token| async { async_heavy_computation_cancellable(token).await },
             |state, num| {
                 debug!("Worker thread | update num: {:?}", num);
                 Counter { num, ..state }
@@ -88,7 +88,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable(
             cancellation_token,
-            async |token| {
+            |token| async {
                 token.cancel();
                 async_heavy_computation_cancellable(token).await
             },

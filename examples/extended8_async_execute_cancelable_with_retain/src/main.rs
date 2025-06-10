@@ -38,7 +38,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable_with_retain(
             CancellationToken::new(),
-            async |_| fibonacci_result(1).await,
+            |_| async { fibonacci_result(1).await },
             |state| &state.num,
             |state, num| {
                 debug!("Worker thread | update num: {:?}", num);
@@ -68,7 +68,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable_with_retain(
             cancellation_token,
-            async |token| heavy_computation_cancellable(token).await,
+            |token| async { heavy_computation_cancellable(token).await },
             |state| &state.num,
             |state, num| {
                 debug!("Worker thread | update num: {:?}", num);
@@ -99,7 +99,7 @@ async fn main() {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute_cancellable_with_retain(
             cancellation_token,
-            async |token| {
+            |token| async {
                 token.cancel();
                 heavy_computation_cancellable(token).await
             },

@@ -1,6 +1,5 @@
 use crate::tracing_setup::tracing_init;
 use easerx::{State, StateStore};
-use std::sync::LazyLock;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
@@ -15,7 +14,8 @@ struct Counter {
 impl State for Counter {}
 
 //Create STORE
-static STORE: LazyLock<StateStore<Counter>> = LazyLock::new(|| StateStore::new(Counter::default()));
+static STORE: once_cell::sync::Lazy<StateStore<Counter>> =
+    once_cell::sync::Lazy::new(|| StateStore::new(Counter::default()));
 
 fn set_state<F>(reducer: F)
 where
@@ -47,20 +47,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("==========================================");
     warn!("Order is : [A, B, W1, W2, S1, S2, S3]");
     info!("  Main thread | A");
-    with_state(|w1| {
-        debug!("Worker thread | W1:{:?}", w1);
-        with_state(|w2| {
-            debug!("Worker thread | W2:{:?}", w2);
+    with_state(|_w1| {
+        debug!("Worker thread | W1");
+        with_state(|_w2| {
+            debug!("Worker thread | W2");
             set_state(|s1| {
                 set_state(|s2| {
                     set_state(|s3| {
-                        debug!("Worker thread | S3:{:?}", s3);
+                        debug!("Worker thread | S3");
                         s3
                     });
-                    debug!("Worker thread | S2:{:?}", s2);
+                    debug!("Worker thread | S2");
                     s2
                 });
-                debug!("Worker thread | S1:{:?}", s1);
+                debug!("Worker thread | S1");
                 s1
             });
         });
@@ -71,13 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("==========================================");
     warn!("Order is : [A, B, W, S1, W1]");
     info!("  Main thread | A");
-    with_state(|w| {
-        debug!("Worker thread | W:{:?}", w);
-        with_state(|w1| {
-            debug!("Worker thread | W1:{:?}", w1);
+    with_state(|_w| {
+        debug!("Worker thread | W");
+        with_state(|_w1| {
+            debug!("Worker thread | W1");
         });
         set_state(|s1| {
-            debug!("Worker thread | S1:{:?}", s1);
+            debug!("Worker thread | S1");
             s1
         });
     });
@@ -87,25 +87,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("==========================================");
     warn!("Order is : [A, B, W, S1, S2, W1, W2]");
     info!("  Main thread | A");
-    with_state(|w| {
-        debug!("Worker thread | W:{:?}", w);
-        with_state(|w1| {
-            debug!("Worker thread | W1:{:?}", w1);
-            with_state(|w2| {
-                debug!("Worker thread | W2:{:?}", w2);
+    with_state(|_w| {
+        debug!("Worker thread | W");
+        with_state(|_w1| {
+            debug!("Worker thread | W1");
+            with_state(|_w2| {
+                debug!("Worker thread | W2");
             });
         });
         set_state(|s1| {
             set_state(|s2| {
-                debug!("Worker thread | S2:{:?}", s2);
+                debug!("Worker thread | S2");
                 s2
             });
-            debug!("Worker thread | S1:{:?}", s1);
+            debug!("Worker thread | S1");
             s1
         });
     });
     info!("  Main thread | B");
-
+    sleep(Duration::from_millis(100)).await;
     info!("  Main thread | Finish");
     Ok(())
 }

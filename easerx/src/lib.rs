@@ -81,7 +81,7 @@
 //! # let state_data = Async::<String>::Uninitialized;
 //! match state_data {
 //!     Async::Uninitialized => println!("Not started"),
-//!     Async::Loading(_) => println!("Loading..."),
+//!     Async::Loading { .. } => println!("Loading..."),
 //!     Async::Success { value } => println!("Data: {}", value),
 //!     Async::Fail { error, .. } => println!("Error: {}", error),
 //! }

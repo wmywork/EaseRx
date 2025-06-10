@@ -1,10 +1,10 @@
+use crate::async_error::AsyncError;
 use crate::unit_tests::TestState;
 use crate::{Async, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use crate::async_error::AsyncError;
 
 // Test async_execute
 #[tokio::test]
@@ -74,14 +74,14 @@ async fn test_async_execute_cancelable_with_computation_join_error() {
     // Execute a computation that returns an error
     store.async_execute_cancellable(
         token.clone(),
-        async |_| "Operation 1 success".to_string(),
+        |_| async { "Operation 1 success".to_string() },
         |state, async_data| state.set_async_data(async_data),
     );
     tokio::time::sleep(Duration::from_secs(1)).await;
     // Execute a computation that returns an error,this computation will joinError
     store.async_execute_cancellable(
         token.clone(),
-        async |_| Err("Operation 2 fail"),
+        |_| async { Err("Operation 2 fail") },
         |state, async_data| state.set_async_data(async_data),
     );
 
