@@ -1,5 +1,4 @@
 use crate::tracing_setup::tracing_init;
-use easerx::AsyncError;
 use easerx::{Async, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
@@ -81,7 +80,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| state.num == Async::fail(AsyncError::Cancelled, Some(1)))
+        .stop_if(|state| state.num == Async::fail_with_cancelled(Some(1)))
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

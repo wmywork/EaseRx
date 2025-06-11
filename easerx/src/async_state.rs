@@ -1,4 +1,6 @@
 use crate::async_error::AsyncError;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Represents the state of an asynchronous operation with its possible outcomes.
 ///
@@ -7,7 +9,12 @@ use crate::async_error::AsyncError;
 /// It provides a uniform way to represent and handle asynchronous state in a reactive application.
 ///
 /// The type parameter `T` represents the successful result type of the operation.
-#[derive(Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Default, Hash)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(rename_all = "camelCase")
+)]
 pub enum Async<T: Clone> {
     /// The initial state before any operation has been attempted.
     #[default]
@@ -196,7 +203,7 @@ impl<T: Clone> Async<T> {
 
     /// Creates a new `Async` in the `Fail` state with a general error message.
     pub fn fail_with_message(message: impl Into<String>, value: Option<T>) -> Self {
-        let error = AsyncError::Error(message.into());
+        let error = AsyncError::error(message.into());
         Async::Fail { error, value }
     }
 
@@ -208,4 +215,3 @@ impl<T: Clone> Async<T> {
         }
     }
 }
-

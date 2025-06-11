@@ -16,6 +16,7 @@ use crate::async_error::AsyncError;
 ///
 /// The state is updated through a message-passing architecture to ensure thread safety and proper
 /// sequencing of state updates.
+#[derive(Debug, Clone)]
 pub struct StateStore<S: State> {
     state: Mutable<S>,
     set_state_tx: UnboundedSender<Box<dyn FnOnce(S) -> S + Send>>,
@@ -168,7 +169,7 @@ impl<S: State> StateStore<S> {
     {
         self.set_state_tx
             .send(Box::new(reducer))
-            .map_err(|e| AsyncError::Error(e.to_string()))
+            .map_err(|e| AsyncError::error(e.to_string()))
     }
 
     /// Updates the state by applying a reducer function.
@@ -216,7 +217,7 @@ impl<S: State> StateStore<S> {
     {
         self.with_state_tx
             .send(Box::new(action))
-            .map_err(|e| AsyncError::Error(e.to_string()))
+            .map_err(|e| AsyncError::error(e.to_string()))
     }
 
     /// Performs an action with the current state without modifying it.
@@ -271,9 +272,9 @@ impl<S: State> StateStore<S> {
             let _ = tx.send(state);
         }));
         if let Err(e) = send_result {
-            Err(AsyncError::Error(e.to_string()))
+            Err(AsyncError::error(e.to_string()))
         } else {
-            rx.await.map_err(|e| AsyncError::Error(e.to_string()))
+            rx.await.map_err(|e| AsyncError::error(e.to_string()))
         }
     }
 
@@ -289,7 +290,7 @@ impl<S: State> StateStore<S> {
             .send(Box::new(move |old_state| {
                 state_updater(old_state, async_state)
             }))
-            .map_err(|e| AsyncError::Error(e.to_string()))
+            .map_err(|e| AsyncError::error(e.to_string()))
     }
 
     async fn run_computation_cancelable<T, R, F>(
@@ -341,7 +342,7 @@ impl<S: State> StateStore<S> {
                 let retained_value = previous_result.value_ref_clone();
                 state_updater(old_state, Async::loading(retained_value))
             }))
-            .map_err(|e| AsyncError::Error(e.to_string()))
+            .map_err(|e| AsyncError::error(e.to_string()))
     }
 
     fn update_async_cancelable_with_retain<T, G>(
@@ -365,7 +366,7 @@ impl<S: State> StateStore<S> {
                 };
                 state_updater(old_state, final_result)
             }))
-            .map_err(|e| AsyncError::Error(e.to_string()))
+            .map_err(|e| AsyncError::error(e.to_string()))
     }
 
     fn execute_blocking_core<T, R, F, U, G>(

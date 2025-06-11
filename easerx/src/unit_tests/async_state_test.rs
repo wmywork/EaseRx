@@ -1,5 +1,5 @@
-use crate::Async;
 use crate::async_error::AsyncError;
+use crate::Async;
 
 #[test]
 fn test_uninitialized() {
@@ -64,7 +64,7 @@ fn test_success() {
 
 #[test]
 fn test_fail() {
-    let fail = Async::fail(AsyncError::Error("Connection failed".to_string()), Some(50));
+    let fail = Async::fail(AsyncError::error("Connection failed"), Some(50));
     assert!(fail.is_complete());
     assert!(fail.should_load());
     assert!(!fail.is_incomplete());
@@ -75,6 +75,70 @@ fn test_fail() {
     assert!(fail.value_ref().is_some());
     assert_eq!(fail.value_ref(), Some(&50));
     assert_eq!(fail.value(), Some(50));
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_async_state_serde() {
+    use serde_json;
+
+    let uninitialized = Async::<i32>::Uninitialized;
+    let serialized_uninitialized = serde_json::to_string(&uninitialized).unwrap();
+    assert_eq!(serialized_uninitialized, r#""uninitialized""#);
+
+    let success = Async::success(42);
+    let serialized = serde_json::to_string(&success).unwrap();
+    assert_eq!(serialized, r#"{"success":{"value":42}}"#);
+
+    let deserialized: Async<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(deserialized, success);
+
+    let loading = Async::loading(Some(42));
+    let serialized_loading = serde_json::to_string(&loading).unwrap();
+    assert_eq!(serialized_loading, r#"{"loading":{"value":42}}"#);
+
+    let deserialized_loading: Async<i32> = serde_json::from_str(&serialized_loading).unwrap();
+    assert_eq!(deserialized_loading, loading);
+
+    let fail_err = Async::fail(AsyncError::error("test"), Some(42));
+    let serialized_fail_err = serde_json::to_string(&fail_err).unwrap();
+    assert_eq!(
+        serialized_fail_err,
+        r#"{"fail":{"error":{"any":{"msg":"test"}},"value":42}}"#
+    );
+
+    let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_err).unwrap();
+    assert_eq!(deserialized_fail, fail_err);
+
+    let fail_none = Async::fail(AsyncError::None, Some(42));
+    let serialized_fail_none = serde_json::to_string(&fail_none).unwrap();
+    assert_eq!(
+        serialized_fail_none,
+        r#"{"fail":{"error":"none","value":42}}"#
+    );
+
+    let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_none).unwrap();
+    assert_eq!(deserialized_fail, fail_none);
+
+    let fail_cancelled = Async::fail(AsyncError::Cancelled, Some(42));
+    let serialized_fail_cancelled = serde_json::to_string(&fail_cancelled).unwrap();
+    assert_eq!(
+        serialized_fail_cancelled,
+        r#"{"fail":{"error":"cancelled","value":42}}"#
+    );
+
+    let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_cancelled).unwrap();
+    assert_eq!(deserialized_fail, fail_cancelled);
+
+    let fail_timeout = Async::fail(AsyncError::Timeout, Some(42));
+    let serialized_fail_timeout = serde_json::to_string(&fail_timeout).unwrap();
+    assert_eq!(
+        serialized_fail_timeout,
+        r#"{"fail":{"error":"timeout","value":42}}"#
+    );
+
+    let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_timeout).unwrap();
+    assert_eq!(deserialized_fail, fail_timeout);
 }
 
 // Test factory methods
@@ -114,7 +178,7 @@ fn test_fail_factory_methods() {
     assert_eq!(
         fail,
         Async::Fail {
-            error: AsyncError::Error("custom error".to_string()),
+            error: AsyncError::error("custom error"),
             value: Some(42)
         }
     );
@@ -124,7 +188,7 @@ fn test_fail_factory_methods() {
 #[test]
 fn test_error_state_helpers() {
     // Test is_fail_with_error
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    let fail = Async::fail(AsyncError::error("error"), None::<i32>);
     assert!(fail.is_fail_with_error());
 
     let fail = Async::fail(AsyncError::None, None::<i32>);
@@ -134,46 +198,26 @@ fn test_error_state_helpers() {
     let fail = Async::fail(AsyncError::None, None::<i32>);
     assert!(fail.is_fail_with_none());
 
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    let fail = Async::fail(AsyncError::error("error"), None::<i32>);
     assert!(!fail.is_fail_with_none());
 
     // Test is_fail_with_canceled
     let fail = Async::fail(AsyncError::Cancelled, None::<i32>);
     assert!(fail.is_fail_with_canceled());
 
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    let fail = Async::fail(AsyncError::error("error"), None::<i32>);
     assert!(!fail.is_fail_with_canceled());
 
     // Test is_fail_with_timeout
     let fail = Async::fail(AsyncError::Timeout, None::<i32>);
     assert!(fail.is_fail_with_timeout());
 
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    let fail = Async::fail(AsyncError::error("error"), None::<i32>);
     assert!(!fail.is_fail_with_timeout());
 }
 
-// Test AsyncError methods
 #[test]
-fn test_async_error_methods() {
-    let none_error = AsyncError::None;
-    assert!(none_error.is_none());
-    assert!(!none_error.is_error());
-    assert!(!none_error.is_cancelled());
-
-    let error = AsyncError::Error("message".to_string());
-    assert!(!error.is_none());
-    assert!(error.is_error());
-    assert!(!error.is_cancelled());
-
-    let cancelled = AsyncError::Cancelled;
-    assert!(!cancelled.is_none());
-    assert!(!cancelled.is_error());
-    assert!(cancelled.is_cancelled());
-}
-
-// Test From trait implementation for &Async<T>
-#[test]
-fn test_retained_value_clone_from_async_ref() {
+fn test_value_ref_clone_from_async_ref() {
     // Test with Success
     let success = Async::success(42);
     let option: Option<i32> = (&success).value_ref_clone();
@@ -190,12 +234,12 @@ fn test_retained_value_clone_from_async_ref() {
     assert_eq!(option, None);
 
     // Test with Fail (with value)
-    let fail = Async::fail(AsyncError::Error("error".to_string()), Some(42));
+    let fail = Async::fail(AsyncError::error("error"), Some(42));
     let option: Option<i32> = (&fail).value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Fail (without value)
-    let fail = Async::fail(AsyncError::Error("error".to_string()), None::<i32>);
+    let fail = Async::fail(AsyncError::error("error"), None::<i32>);
     let option: Option<i32> = (&fail).value_ref_clone();
     assert_eq!(option, None);
 
@@ -203,6 +247,33 @@ fn test_retained_value_clone_from_async_ref() {
     let uninitialized = Async::<i32>::Uninitialized;
     let option: Option<i32> = (&uninitialized).value_ref_clone();
     assert_eq!(option, None);
+}
+
+#[test]
+fn test_set_retain_value() {
+    // Test with Loading
+    let mut loading = Async::loading(Some(42));
+    loading = loading.set_retain_value(Some(100));
+    assert!(loading.is_loading());
+    assert_eq!(loading.value_ref(), Some(&100));
+
+    // Test with Fail
+    let mut fail = Async::fail(AsyncError::error("error"), Some(42));
+    fail = fail.set_retain_value(Some(100));
+    assert!(fail.is_fail());
+    assert_eq!(fail.value_ref(), Some(&100));
+
+    // Test with Success
+    let mut success = Async::success(42);
+    success = success.set_retain_value(Some(100));
+    assert!(success.is_success());
+    assert_eq!(success.value_ref(), Some(&42));
+
+    // Test with Uninitialized
+    let mut uninitialized: Async<i32> = Async::default();
+    uninitialized = uninitialized.set_retain_value(Some(100));
+    assert!(uninitialized.is_uninitialized());
+    assert_eq!(uninitialized.value_ref(), None);
 }
 
 // Test complex state transitions
@@ -243,7 +314,7 @@ fn test_complex_state_transitions() {
 
     // Transition to fail with retained value
     state = Async::fail(
-        AsyncError::Error("Update failed".to_string()),
+        AsyncError::error("Update failed"),
         Some(updated_user.clone()),
     );
     assert!(state.is_complete());

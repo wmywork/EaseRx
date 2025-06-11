@@ -40,7 +40,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 1 } == state.num)
+        .stop_if(|state| Async::success(1) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })
@@ -67,8 +67,7 @@ async fn main() {
     let state_flow = store.to_signal();
     state_flow
         .stop_if(|state| {
-            Async::fail_with_message("calculation overflow at n=93".to_string(), Some(1))
-                == state.num
+            Async::fail_with_message("calculation overflow at n=93", Some(1)) == state.num
         })
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);

@@ -131,10 +131,7 @@ async fn test_async_execute_with_error() {
     assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(
         state_vec[2],
-        Async::Fail {
-            error: AsyncError::Error("Operation failed".to_string()),
-            value: None,
-        }
+        Async::fail(AsyncError::error("Operation failed"), None,)
     );
 }
 

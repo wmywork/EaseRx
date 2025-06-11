@@ -7,7 +7,7 @@ default:
     @just --list --unsorted
 
 _test:
-    cargo test -p easerx
+    cargo test -p easerx --features "serde"
 
 _test-output:
     cargo test -p easerx -- --show-output

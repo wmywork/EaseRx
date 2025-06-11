@@ -1,10 +1,10 @@
+use crate::async_error::AsyncError;
 use crate::unit_tests::TestState;
 use crate::{Async, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use crate::async_error::AsyncError;
 
 // Test execute functionality
 #[tokio::test]
@@ -30,12 +30,7 @@ async fn test_execute() {
 
     assert_eq!(state_vec[0], Async::Uninitialized);
     assert_eq!(state_vec[1], Async::loading(None));
-    assert_eq!(
-        state_vec[2],
-        Async::Success {
-            value: "Hello, World!".to_string()
-        }
-    );
+    assert_eq!(state_vec[2], Async::success("Hello, World!".to_string()));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -132,10 +127,7 @@ async fn test_execute_with_error() {
     assert_eq!(state_vec[1], Async::loading(None));
     assert_eq!(
         state_vec[2],
-        Async::Fail {
-            error: AsyncError::Error("Operation failed".to_string()),
-            value: None,
-        }
+        Async::fail(AsyncError::error("Operation failed"), None,)
     );
 }
 

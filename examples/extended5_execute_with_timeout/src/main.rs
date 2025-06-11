@@ -38,7 +38,7 @@ async fn main() {
     });
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 100_000_000 } == state.num)
+        .stop_if(|state| Async::success(100_000_000) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

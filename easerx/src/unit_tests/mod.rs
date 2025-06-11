@@ -2,8 +2,8 @@ use crate::{Async, State};
 
 // Import test modules
 mod async_state_test;
+mod async_error_test;
 mod execution_result_test;
-
 mod async_executes_test;
 mod execute_test;
 mod state_store_test;

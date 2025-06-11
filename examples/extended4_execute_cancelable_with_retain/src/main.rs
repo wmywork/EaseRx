@@ -79,7 +79,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::fail(AsyncError::Cancelled, Some(1)) == state.num)
+        .stop_if(|state| Async::fail_with_cancelled(Some(1)) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

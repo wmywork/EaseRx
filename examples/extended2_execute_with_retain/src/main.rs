@@ -1,6 +1,5 @@
 use crate::tracing_setup::tracing_init;
-use easerx::AsyncError::Error;
-use easerx::{Async, State, StateStore};
+use easerx::{Async, AsyncError, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,7 +40,7 @@ async fn main() {
 
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 1 } == state.num)
+        .stop_if(|state| Async::success(1) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })
@@ -68,10 +67,7 @@ async fn main() {
     let state_flow = store.to_signal();
     state_flow
         .stop_if(|state| {
-            Async::Fail {
-                error: Error("calculation overflow at n=93".to_string()),
-                value: Some(1),
-            } == state.num
+            Async::fail_with_message("calculation overflow at n=93", Some(1)) == state.num
         })
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);

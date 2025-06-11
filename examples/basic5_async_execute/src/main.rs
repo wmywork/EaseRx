@@ -34,7 +34,7 @@ async fn main() {
     });
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 200_000_000 } == state.num)
+        .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })
@@ -57,7 +57,7 @@ async fn main() {
     });
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 200_000_000 } == state.num)
+        .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })
@@ -80,9 +80,7 @@ async fn main() {
     });
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| {
-            Async::fail_with_message("Computation was cancelled".to_string(), None) == state.num
-        })
+        .stop_if(|state| Async::fail_with_message("Computation was cancelled", None) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })
@@ -105,7 +103,7 @@ async fn main() {
     });
     let state_flow = store.to_signal();
     state_flow
-        .stop_if(|state| Async::Success { value: 200_000_000 } == state.num)
+        .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
             info!("  Main thread | show state: {:?} ", state);
         })

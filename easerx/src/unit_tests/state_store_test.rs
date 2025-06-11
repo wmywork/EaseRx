@@ -1,4 +1,3 @@
-use crate::async_error::AsyncError::Error;
 use crate::unit_tests::TestState;
 use crate::{Async, StateStore};
 use futures::stream::StreamExt;
@@ -54,7 +53,7 @@ async fn test_set_state_panic() -> Result<(), AsyncError> {
     })?;
 
     let state = store.await_state().await;
-    assert_eq!(state, Err(Error("channel closed".to_string())));
+    assert_eq!(state, Err(AsyncError::error("channel closed")));
     Ok(())
 }
 
