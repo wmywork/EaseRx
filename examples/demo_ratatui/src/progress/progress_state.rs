@@ -17,3 +17,52 @@ impl Default for ProgressState {
         }
     }
 }
+
+impl ProgressState {
+    pub fn increment_progress(self) -> Self {
+        let progress = if self.progress < 0.99 {
+            self.progress + 0.01
+        } else {
+            1.0
+        };
+        Self { progress, ..self }
+    }
+
+    pub fn decrement_progress(self) -> Self {
+        let progress = if self.progress > 0.01 {
+            self.progress - 0.01
+        } else {
+            0.0
+        };
+        Self { progress, ..self }
+    }
+
+    pub fn reset_progress(self) -> Self {
+        Self {
+            progress: 0.5,
+            ..self
+        }
+    }
+
+    pub fn increment_color(self) -> Self {
+        let color = match self.color {
+            Color::Indexed(id) => {
+                let id = if id < u8::MAX { id + 1 } else { id };
+                Color::Indexed(id)
+            }
+            _ => Color::Indexed(1),
+        };
+        Self { color, ..self }
+    }
+
+    pub fn decrement_color(self) -> Self {
+        let color = match self.color {
+            Color::Indexed(id) => {
+                let id = if id > u8::MIN + 1 { id - 1 } else { id };
+                Color::Indexed(id)
+            }
+            _ => Color::Indexed(1),
+        };
+        Self { color, ..self }
+    }
+}

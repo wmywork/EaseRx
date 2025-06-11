@@ -30,6 +30,22 @@ impl ExecutorState {
             ..self
         }
     }
+
+    pub fn set_repeated_clicks(self, repeated: bool) -> Self {
+        Self {
+            repeated_clicks: repeated,
+            ..self
+        }
+    }
+
+    pub fn set_async_num(self, num: Async<u64>) -> Self {
+        Self {
+            async_num: num,
+            repeated_clicks: false,
+            ..self
+        }
+    }
+
     pub fn set_exit(self) -> Self {
         Self { exit: true, ..self }
     }

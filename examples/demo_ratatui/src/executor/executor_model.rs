@@ -27,12 +27,11 @@ impl ExecutorModel {
                         tick_store._set_state(|state| state.on_tick());
                     }
                 }
-                
             }
         });
         Self { store }
     }
-    
+
     pub fn store(&self) -> Arc<StateStore<ExecutorState>> {
         self.store.clone()
     }
@@ -42,28 +41,18 @@ impl ExecutorModel {
         self.store._with_state(move |state| {
             if state.async_num.is_loading() {
                 //show repeated clicks and return
-                store_set._set_state(|s| ExecutorState {
-                    repeated_clicks: true,
-                    ..s
-                });
+                store_set._set_state(|state| state.set_repeated_clicks(true));
                 return;
             } else {
-                store_set.execute(
-                    || heavy_computation(),
-                    |last, num| ExecutorState {
-                        async_num: num,
-                        repeated_clicks: false,
-                        ..last
-                    },
-                );
+                store_set.execute(|| heavy_computation(), |state, num| state.set_async_num(num));
             }
         });
     }
-    
+
     pub fn reset_num(&self) {
         self.store._set_state(|state| state.reset_num());
     }
-    
+
     pub fn request_exit(&self) {
         self.store._set_state(|state| state.set_exit());
     }

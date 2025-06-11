@@ -24,11 +24,12 @@ impl InputHandler {
         self.store.clone()
     }
 
+    pub fn send_draw_event(&self) {
+        self.store._set_state(|state| state.send_draw_event());
+    }
+
     pub fn request_exit(&self) {
-        self.store._set_state(|state| InputState {
-            exit: true,
-            ..state
-        });
+        self.store._set_state(|state| state.set_exit());
     }
 }
 
@@ -48,8 +49,11 @@ pub fn start_input_listener(
                     error!("Failed to get input state");
                     break;
                 }
-                Ok(InputState { exit: true }) => break,
-                Ok(InputState { exit: false }) => {}
+                Ok(state) => {
+                    if state.is_exit() {
+                        break;
+                    }
+                }
             }
             if event::poll(timeout).unwrap_or(false) {
                 if let Ok(event) = event::read() {
@@ -73,6 +77,10 @@ fn handle_event(
     executor_model: Arc<ExecutorModel>,
     input_handler: Arc<InputHandler>,
 ) {
+    if let Event::Resize(_, _) = event {
+        input_handler.send_draw_event()
+    }
+
     if let Event::Key(key) = event {
         if key.kind != KeyEventKind::Press {
             return;

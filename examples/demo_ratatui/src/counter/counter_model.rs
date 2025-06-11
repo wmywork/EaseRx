@@ -45,22 +45,15 @@ impl CounterViewModel {
     }
 
     pub fn start_counter(&self) {
-        self.store._set_state(|state| CounterState {
-            started: true,
-            ..state
-        });
+        self.store._set_state(|state| state.set_started(true));
     }
 
     pub fn stop_counter(&self) {
-        self.store._set_state(|state| CounterState {
-            started: false,
-            ..state
-        });
+        self.store._set_state(|state| state.set_started(false));
     }
 
     pub fn reset_counter(&self) {
-        self.store
-            ._set_state(|state| CounterState { count: 0, ..state });
+        self.store._set_state(|state| state.reset_count());
     }
 
     pub fn request_exit(&self) {

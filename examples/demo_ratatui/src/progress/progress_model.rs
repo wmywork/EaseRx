@@ -1,6 +1,5 @@
 use crate::progress::progress_state::ProgressState;
 use easerx::StateStore;
-use ratatui::prelude::Color;
 use std::sync::Arc;
 
 pub struct ProgressViewModel {
@@ -19,57 +18,22 @@ impl ProgressViewModel {
     }
 
     pub fn increment_progress(&self) {
-        self.store._set_state(|state| {
-            let progress = if state.progress < 0.99 {
-                state.progress + 0.01
-            } else {
-                1.0
-            };
-            ProgressState { progress, ..state }
-        });
+        self.store._set_state(|state| state.increment_progress());
     }
 
     pub fn decrement_progress(&self) {
-        self.store._set_state(|state| {
-            let progress = if state.progress > 0.01 {
-                state.progress - 0.01
-            } else {
-                0.0
-            };
-            ProgressState { progress, ..state }
-        });
+        self.store._set_state(|state| state.decrement_progress());
     }
 
     pub fn change_color_up(&self) {
-        self.store._set_state(|state| {
-            let color = match state.color {
-                Color::Indexed(id) => {
-                    let id = if id < u8::MAX { id + 1 } else { id };
-                    Color::Indexed(id)
-                }
-                _ => Color::Indexed(1),
-            };
-            ProgressState { color, ..state }
-        });
+        self.store._set_state(|state| state.increment_color());
     }
 
     pub fn change_color_down(&self) {
-        self.store._set_state(|state| {
-            let color = match state.color {
-                Color::Indexed(id) => {
-                    let id = if id > u8::MIN + 1 { id - 1 } else { id };
-                    Color::Indexed(id)
-                }
-                _ => Color::Indexed(1),
-            };
-            ProgressState { color, ..state }
-        });
+        self.store._set_state(|state| state.decrement_color());
     }
 
     pub fn reset_progress(&self) {
-        self.store._set_state(|state| ProgressState {
-            progress: 0.5,
-            ..state
-        });
+        self.store._set_state(|state| state.reset_progress());
     }
 }

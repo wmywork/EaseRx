@@ -33,6 +33,14 @@ impl CounterState {
         }
     }
 
+    pub fn reset_count(self) -> Self {
+        Self { count: 0, ..self }
+    }
+
+    pub fn set_started(self, started: bool) -> Self {
+        Self { started, ..self }
+    }
+
     pub fn set_exit(self) -> Self {
         Self { exit: true, ..self }
     }
