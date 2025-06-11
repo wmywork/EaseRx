@@ -7,9 +7,10 @@ use crate::async_error::AsyncError;
 /// It provides a uniform way to represent and handle asynchronous state in a reactive application.
 ///
 /// The type parameter `T` represents the successful result type of the operation.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub enum Async<T: Clone> {
     /// The initial state before any operation has been attempted.
+    #[default]
     Uninitialized,
 
     /// The operation is in progress. May optionally contain the previous value.
@@ -208,9 +209,3 @@ impl<T: Clone> Async<T> {
     }
 }
 
-impl<T: Clone> Default for Async<T> {
-    /// Returns the default value for `Async<T>`, which is `Async::Uninitialized`.
-    fn default() -> Self {
-        Async::Uninitialized
-    }
-}
