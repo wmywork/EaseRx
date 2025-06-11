@@ -37,9 +37,10 @@ impl ProgressState {
         Self { progress, ..self }
     }
 
-    pub fn reset_progress(self) -> Self {
+    pub fn reset_progress_and_color(self) -> Self {
         Self {
             progress: 0.5,
+            color: Color::Indexed(2),
             ..self
         }
     }

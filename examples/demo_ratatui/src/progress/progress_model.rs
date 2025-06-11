@@ -34,6 +34,6 @@ impl ProgressViewModel {
     }
 
     pub fn reset_progress(&self) {
-        self.store._set_state(|state| state.reset_progress());
+        self.store._set_state(|state| state.reset_progress_and_color());
     }
 }
