@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use crate::async_error::AsyncError;
 use crate::Async;
 
@@ -104,7 +105,7 @@ fn test_async_state_serde() {
     let serialized_fail_err = serde_json::to_string(&fail_err).unwrap();
     assert_eq!(
         serialized_fail_err,
-        r#"{"fail":{"error":{"any":{"msg":"test"}},"value":42}}"#
+        r#"{"fail":{"error":{"error":"test"},"value":42}}"#
     );
 
     let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_err).unwrap();
@@ -139,6 +140,88 @@ fn test_async_state_serde() {
 
     let deserialized_fail: Async<i32> = serde_json::from_str(&serialized_fail_timeout).unwrap();
     assert_eq!(deserialized_fail, fail_timeout);
+}
+
+#[test]
+fn test_async_state_marco_debug() {
+    let uninitialized: Async<i32> = Async::default();
+    let debug_str = format!("{:?}", uninitialized);
+    assert_eq!(debug_str, "Uninitialized");
+    
+    let loading = Async::loading(Some(42));
+    let debug_str = format!("{:?}", loading);
+    assert_eq!(debug_str, "Loading { value: Some(42) }");
+    
+    let success = Async::success(42);
+    let debug_str = format!("{:?}", success);
+    assert_eq!(debug_str, "Success { value: 42 }");
+    
+    let fail = Async::fail(AsyncError::error("test"), Some(42));
+    let debug_str = format!("{:?}", fail);
+    assert_eq!(debug_str, "Fail { error: Error(\"test\"), value: Some(42) }");
+}
+#[test]
+fn test_async_state_hash(){
+
+    let uninitialized1: Async<i32> = Async::default();
+    let uninitialized2: Async<i32> = Async::default();
+    let unintialized1_hash={
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        uninitialized1.hash(&mut hasher);
+        hasher.finish()
+    };
+    let unintialized2_hash={
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        uninitialized2.hash(&mut hasher);
+        hasher.finish()
+    };
+    assert_eq!(unintialized1_hash, unintialized2_hash);
+
+    let loading1 = Async::loading(Some(42));
+    let loading2 = Async::loading(Some(42));
+    let loading1_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        loading1.hash(&mut hasher);
+        hasher.finish()
+    };
+    let loading2_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        loading2.hash(&mut hasher);
+        hasher.finish()
+    };
+    assert_eq!(loading1_hash, loading2_hash);
+
+    let success1 = Async::success(42);
+    let success2 = Async::success(42);
+    let success1_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        success1.hash(&mut hasher);
+        hasher.finish()
+    };
+    let success2_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        success2.hash(&mut hasher);
+        hasher.finish()
+    };
+    assert_eq!(success1_hash, success2_hash);
+
+    let fail1 = Async::fail(AsyncError::error("test"), Some(42));
+    let fail2 = Async::fail(AsyncError::error("test"), Some(42));
+    let fail1_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        fail1.hash(&mut hasher);
+        hasher.finish()
+    };
+    let fail2_hash = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        fail2.hash(&mut hasher);
+        hasher.finish()
+    };
+    assert_eq!(fail1_hash, fail2_hash);
+
+    assert_ne!(unintialized1_hash,loading1_hash);
+    assert_ne!(unintialized1_hash, success1_hash);
+    assert_ne!(unintialized1_hash, fail1_hash);
 }
 
 // Test factory methods

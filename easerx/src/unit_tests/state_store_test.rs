@@ -81,7 +81,7 @@ async fn test_with_state_panic() -> Result<(), AsyncError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     store.with_state(move |state| {
         let _ = tx.send(state.count);
-        panic!("This should not panic");
+        panic!("with_state panic");
     })?;
 
     let counter = rx.await.unwrap();

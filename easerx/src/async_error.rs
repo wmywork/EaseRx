@@ -16,8 +16,8 @@ use thiserror::Error;
 )]
 pub enum AsyncError {
     /// A general error with a message describing what went wrong.
-    #[error("{msg}")]
-    Any { msg: String },
+    #[error("{0}")]
+    Error(String),
 
     /// An operation returned None when a value was expected.
     #[error("Operation returned None!")]
@@ -34,7 +34,7 @@ pub enum AsyncError {
 
 impl AsyncError {
     pub fn error(msg: impl Into<String>) -> Self {
-        AsyncError::Any { msg: msg.into() }
+        AsyncError::Error(msg.into())
     }
     /// Returns true if this error represents a None result.
     pub fn is_none(&self) -> bool {
@@ -43,7 +43,7 @@ impl AsyncError {
 
     /// Returns true if this error is a general error with a message.
     pub fn is_error(&self) -> bool {
-        matches!(self, AsyncError::Any { .. })
+        matches!(self, AsyncError::Error { .. })
     }
 
     /// Returns true if this error represents a cancelled operation.
