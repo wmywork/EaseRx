@@ -38,30 +38,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "but the functions of the main thread and the worker thread are still executed in their respective orders"
     );
 
-    info!("  Main thread | A");
+    info!("  Main | A");
 
     store.with_state(|state| {
-        debug!("Worker thread | with_state:{:?}", state);
+        debug!("Worker | with_state:{:?}", state);
     })?;
 
-    info!("  Main thread | B");
+    info!("  Main | B");
 
     store.set_state(|state| {
-        debug!("Worker thread | set_state: count + 1");
+        debug!("Worker | set_state: count + 1");
         state.add_count(1)
     })?;
 
-    info!("  Main thread | C");
+    info!("  Main | C");
 
     store.with_state(|state| {
-        debug!("Worker thread | with_state:{:?}", state);
+        debug!("Worker | with_state:{:?}", state);
     })?;
 
     sleep(Duration::from_millis(10)).await;
 
     info!("==========================================");
     let current_state = store.await_state().await.unwrap();
-    info!("  Main thread | current_state is :{:?}", current_state);
+    info!("  Main | current_state is :{:?}", current_state);
 
     info!("==========================================");
     let store_clone = store.clone();
@@ -83,11 +83,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .to_signal()
         .stop_if(|state| state.count > 100)
         .for_each(|count| {
-            info!("  Main thread | count is :{:?}", count);
+            info!("  Main | count is :{:?}", count);
             async {}
         })
         .await;
 
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
     Ok(())
 }

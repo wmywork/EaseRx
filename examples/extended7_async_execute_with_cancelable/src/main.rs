@@ -21,7 +21,7 @@ async fn main() {
     tracing_init();
 
     info!("==========================================");
-    warn!("A. async execution will be success ");
+    warn!("A. Async execution will complete successfully");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -32,7 +32,7 @@ async fn main() {
             CancellationToken::new(),
             |_| async { async_heavy_computation().await },
             move |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -42,14 +42,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(100_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("B. async execute example: cancel in Main thread");
+    warn!("B. Cancellation from main thread");
 
     let store = Arc::new(StateStore::new(Counter::default()));
     let cancellation_token = CancellationToken::new();
@@ -62,7 +62,7 @@ async fn main() {
             cancellation_token,
             |token| async { async_heavy_computation_cancellable(token).await },
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -73,12 +73,12 @@ async fn main() {
     state_flow
         .stop_if(|state| state.num.is_fail_with_canceled())
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    warn!("C. execute example: cancel in computation Closure");
+    warn!("C. Cancellation from computation closure");
 
     let store = Arc::new(StateStore::new(Counter::default()));
     let cancellation_token = CancellationToken::new();
@@ -93,7 +93,7 @@ async fn main() {
                 async_heavy_computation_cancellable(token).await
             },
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -103,11 +103,11 @@ async fn main() {
     state_flow
         .stop_if(|state| state.num.is_fail_with_canceled())
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 async fn async_heavy_computation() -> u64 {

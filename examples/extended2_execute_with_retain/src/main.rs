@@ -1,5 +1,5 @@
 use crate::tracing_setup::tracing_init;
-use easerx::{Async, AsyncError, State, StateStore};
+use easerx::{Async, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,9 +19,9 @@ impl State for Counter {}
 async fn main() {
     tracing_init();
 
-    info!("State must impl Clone for retain value");
+    info!("Using state that implements Clone for value retention");
     info!("==========================================");
-    warn!("A. execution will be successful ");
+    warn!("A. Execution will complete successfully");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -32,7 +32,7 @@ async fn main() {
             || fibonacci_result(1),
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | Updated num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -42,14 +42,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(1) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("Main | Current state: {:?}", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("B. execute with retain value (will be fail and retain previous value)");
+    warn!("B. Execution with value retention (will fail but retain previous value)");
 
     let store_clone = store.clone();
     tokio::spawn(async move {
@@ -58,7 +58,7 @@ async fn main() {
             || fibonacci_result(93),
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | Updated num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -70,12 +70,12 @@ async fn main() {
             Async::fail_with_message("calculation overflow at n=93", Some(1)) == state.num
         })
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("Main | Current state: {:?}", state);
         })
         .await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("Main | Finish");
 }
 
 fn fibonacci_result(n: u64) -> Result<u64, String> {

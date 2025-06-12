@@ -108,14 +108,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.arc_vec_len() == TEST_LEN)
         .for_each(|state| {
             if state.arc_vec_len() == TEST_LEN {
-                info!("  Main thread | arc_vec len is :{:?}", TEST_LEN);
+                info!("  Main | arc_vec len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
     warn!("Test a huge collection: vec (Not recommended)");
@@ -132,14 +132,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.vec_len() == TEST_LEN)
         .for_each(|state| {
             if state.vec_len() == TEST_LEN {
-                info!("  Main thread | vec len is :{:?}", TEST_LEN);
+                info!("  Main | vec len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
     warn!("Test a huge String: arc_str (recommended)");
@@ -157,14 +157,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.arc_str_len() == TEST_LEN)
         .for_each(|state| {
             if state.arc_str_len() == TEST_LEN {
-                info!("  Main thread | arc_str len is :{:?}", TEST_LEN);
+                info!("  Main | arc_str len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
     warn!("Test a huge String: str (Not recommended)");
@@ -182,14 +182,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.str_len() == TEST_LEN)
         .for_each(|state| {
             if state.str_len() == TEST_LEN {
-                info!("  Main thread | str len is :{:?}", TEST_LEN);
+                info!("  Main | str len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
     warn!("Test a huge collection: arc_map (recommended)");
@@ -206,14 +206,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.arc_map_len() == TEST_LEN)
         .for_each(|state| {
             if state.arc_map_len() == TEST_LEN {
-                info!("  Main thread | arc_map len is :{:?}", TEST_LEN);
+                info!("  Main | arc_map len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
     warn!("Test a huge collection: map (Not recommended)");
@@ -230,16 +230,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stop_if(|state| state.map_len() == TEST_LEN)
         .for_each(|state| {
             if state.map_len() == TEST_LEN {
-                info!("  Main thread | map len is :{:?}", TEST_LEN);
+                info!("  Main | map len is :{:?}", TEST_LEN);
             };
             async {}
         })
         .await;
 
     let elapsed = last_tick.elapsed();
-    info!("  Main thread | elapsed is :{:?}", elapsed);
+    info!("  Main | elapsed is :{:?}", elapsed);
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
     Ok(())
 }

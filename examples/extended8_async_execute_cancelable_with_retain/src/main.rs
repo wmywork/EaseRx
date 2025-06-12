@@ -27,8 +27,9 @@ impl Counter {
 async fn main() {
     tracing_init();
 
+    info!("Using state that implements Clone for value retention");
     info!("==========================================");
-    warn!("A. async execution will be success ");
+    warn!("A. Async execution will complete successfully");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -40,7 +41,7 @@ async fn main() {
             |_| async { fibonacci_result(1).await },
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -50,14 +51,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(1) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("B. async execute example: cancel in Main thread and retain previous value");
+    warn!("B. Cancel from main thread and retain previous value");
 
     let cancellation_token = CancellationToken::new();
     let control_token = cancellation_token.clone();
@@ -70,7 +71,7 @@ async fn main() {
             |token| async { heavy_computation_cancellable(token).await },
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -82,12 +83,12 @@ async fn main() {
     state_flow
         .stop_if(|state| state.num == Async::fail_with_cancelled(Some(1)))
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    warn!("C. async execute example: cancel in computation Closure and retain previous value");
+    warn!("C. Cancel from computation Closure and retain previous value");
     store._set_state(|state| state.set_num(Async::success(2)));
     sleep(Duration::from_millis(1)).await;
 
@@ -104,7 +105,7 @@ async fn main() {
             },
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -114,12 +115,12 @@ async fn main() {
     state_flow
         .stop_if(|state| state.num == Async::fail_with_cancelled(Some(2)))
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 async fn fibonacci_result(n: u64) -> Result<u64, String> {

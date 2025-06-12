@@ -59,6 +59,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await;
     info!("=================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
     Ok(())
 }

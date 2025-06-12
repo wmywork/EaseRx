@@ -20,7 +20,7 @@ async fn main() {
     tracing_init();
 
     info!("==========================================");
-    warn!("async execute example ");
+    warn!("example: Successful async execution example");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -28,7 +28,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute(heavy_computation(), |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -36,14 +36,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: async execute with Result Ok");
+    warn!("example: Async execution with Result Ok");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -51,7 +51,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute(heavy_computation_result(false), |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -59,14 +59,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: async execute with Result Err");
+    warn!("example: Async execution with Result Err");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -74,7 +74,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute(heavy_computation_result(true), |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -82,14 +82,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::fail_with_message("Computation was cancelled", None) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: async execute with Option Some");
+    warn!("example: Async execution with Option Some");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -97,7 +97,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute(heavy_computation_option(false), |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -105,14 +105,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: async execute with Option None");
+    warn!("example: Async execution with Option None");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -120,7 +120,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.async_execute(heavy_computation_option(true), |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -128,14 +128,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::fail_with_none(None) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 async fn heavy_computation() -> u64 {

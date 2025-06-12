@@ -20,7 +20,7 @@ async fn main() {
     tracing_init();
 
     info!("==========================================");
-    warn!("A. execute will success ");
+    warn!("A. Execution will complete successfully");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -31,7 +31,7 @@ async fn main() {
             || heavy_computation(),
             Duration::from_millis(2000),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -40,14 +40,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(100_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("B. execute will time out");
+    warn!("B. Execution will time out");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -58,7 +58,7 @@ async fn main() {
             || heavy_computation(),
             Duration::from_millis(10),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -68,12 +68,12 @@ async fn main() {
     state_flow
         .stop_if(|state| state.num.is_fail_with_timeout())
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 fn heavy_computation() -> u64 {

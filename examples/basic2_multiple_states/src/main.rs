@@ -31,7 +31,7 @@ impl Counter {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_init();
 
-    info!("  Main thread | Create stores");
+    info!("  Main | Create stores");
     let store1 = Arc::new(StateStore::new(Counter { count: 1 }));
     let store2 = Arc::new(StateStore::new(Counter { count: 2 }));
 
@@ -43,24 +43,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         sleep(Duration::from_millis(50)).await;
         store1_clone.set_state(|state| {
-            debug!("Worker thread | set_state1: count + 10");
+            debug!("Worker | set_state1: count + 10");
             state.add_count(10)
         })?;
         sleep(Duration::from_millis(50)).await;
         store2_clone.set_state(|state| {
-            debug!("Worker thread | set_state2: count + 10");
+            debug!("Worker | set_state2: count + 10");
             state.add_count(10)
         })?;
         Ok::<(), AsyncError>(())
     });
 
-    info!("  Main thread | combine state flow");
+    info!("  Main | combine state flow");
     let state_flow = combine_state_flow! {store1.to_signal(), store2.to_signal()};
     state_flow
         .stop_if(|(state1, state2)| state1.count >= 11 && state2.count >= 12)
         .for_each(|(state1, state2)| async move {
             info!(
-                "  Main thread | state1: {:?} , state2: {:?}",
+                "  Main | state1: {:?} , state2: {:?}",
                 state1, state2
             );
         })
@@ -74,12 +74,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         sleep(Duration::from_millis(100)).await;
         store1_clone.set_state(|state| {
-            debug!("Worker thread | set_state1: count + 100");
+            debug!("Worker | set_state1: count + 100");
             state.add_count(100)
         })?;
         sleep(Duration::from_millis(100)).await;
         store2_clone.set_state(|state| {
-            debug!("Worker thread | set_state2: count + 100");
+            debug!("Worker | set_state2: count + 100");
             state.add_count(100)
         })?;
         Ok::<(), AsyncError>(())
@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some((state1, state2)) = state_stream.next().await {
             debug!(
-                "Worker thread | state1: {:?} , state2: {:?}",
+                "Worker | state1: {:?} , state2: {:?}",
                 state1, state2
             );
             if state1.count >= 111 && state2.count >= 112 {
@@ -100,6 +100,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
     Ok(())
 }

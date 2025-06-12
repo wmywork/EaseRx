@@ -15,18 +15,18 @@ struct Counter {
 impl State for Counter {}
 
 async fn normal_function(i: i32) {
-    debug!("Worker thread | start normal_function:{}", i);
+    debug!("Worker | start normal_function:{}", i);
     sleep(Duration::from_millis(100)).await;
-    debug!("Worker thread | finish normal_function:{}", i);
+    debug!("Worker | finish normal_function:{}", i);
 }
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_init();
 
-    info!("tokio use the single-threaded runtime");
+    info!("tokio: single-threaded runtime");
     info!("==========================================");
-    warn!("A. execute heavy_computation will not blocking normal_function");
+    warn!("A. Execution will not blocking normal_function");
     let mut handles = Vec::new();
 
     for i in 0..2 {
@@ -42,7 +42,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation(),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -63,7 +63,7 @@ async fn main() {
     }
 
     info!("==========================================");
-    warn!("B. async execute heavy_computation will blocking normal_function");
+    warn!("B. Async execution will blocking normal_function");
     let mut handles = Vec::new();
 
     for i in 0..2 {
@@ -77,7 +77,7 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         store_clone.async_execute(async { heavy_computation() }, |state, num| {
-            debug!("Worker thread | update num: {:?}", num);
+            debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
         })
     });
@@ -88,7 +88,7 @@ async fn main() {
     info!("computation done before normal_function finish");
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 fn heavy_computation() -> u64 {

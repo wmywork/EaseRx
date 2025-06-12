@@ -20,7 +20,7 @@ async fn main() {
     tracing_init();
 
     info!("==========================================");
-    warn!("example: execute");
+    warn!("example: Successful execution example");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -30,7 +30,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation(),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -39,14 +39,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::Success { value: 200_000_000 } == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: execute with Result Ok");
+    warn!("example: Execution with Result Ok");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -56,7 +56,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation_result(false),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -65,14 +65,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::Success { value: 200_000_000 } == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: execute with Result Err");
+    warn!("example: Execution with Result Err");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -82,7 +82,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation_result(true),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -93,14 +93,14 @@ async fn main() {
             Async::fail_with_message("Computation was cancelled".to_string(), None) == state.num
         })
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: execute with Option Some");
+    warn!("example: Execution with Option Some");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -110,7 +110,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation_option(false),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -119,14 +119,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(200_000_000) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("example: execute with Option None");
+    warn!("example: Execution with Option None");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -136,7 +136,7 @@ async fn main() {
         store_clone.execute(
             || heavy_computation_option(true),
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -145,14 +145,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::fail_with_none(None) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 fn heavy_computation() -> u64 {

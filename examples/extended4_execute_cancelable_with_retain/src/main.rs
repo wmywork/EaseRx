@@ -1,5 +1,4 @@
 use crate::tracing_setup::tracing_init;
-use easerx::AsyncError;
 use easerx::{Async, State, StateStore};
 use futures_signals::signal::SignalExt;
 use std::sync::Arc;
@@ -28,8 +27,9 @@ impl Counter {
 async fn main() {
     tracing_init();
 
+    info!("Using state that implements Clone for value retention");
     info!("==========================================");
-    warn!("A. execution will be success ");
+    warn!("A. Execution will complete successfully");
 
     let store = Arc::new(StateStore::new(Counter::default()));
 
@@ -41,7 +41,7 @@ async fn main() {
             |_| 1,
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         )
@@ -50,14 +50,14 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::success(1) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     sleep(Duration::from_millis(100)).await;
 
     info!("==========================================");
-    warn!("B. execute example: cancel in Main thread and retain previous value");
+    warn!("B. Cancel from main thread and retain previous value");
 
     let cancellation_token = CancellationToken::new();
     let control_token = cancellation_token.clone();
@@ -70,7 +70,7 @@ async fn main() {
             |token| heavy_computation_cancellable(token),
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -81,12 +81,12 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::fail_with_cancelled(Some(1)) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    warn!("C. execute example: cancel in computation Closure and retain previous value");
+    warn!("C. Cancel from computation Closure and retain previous value");
 
     store._set_state(|state| state.set_num(Async::success(2)));
     sleep(Duration::from_millis(1)).await;
@@ -104,7 +104,7 @@ async fn main() {
             },
             |state| &state.num,
             |state, num| {
-                debug!("Worker thread | update num: {:?}", num);
+                debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
         );
@@ -114,12 +114,12 @@ async fn main() {
     state_flow
         .stop_if(|state| Async::fail_with_cancelled(Some(2)) == state.num)
         .for_each(|state| async move {
-            info!("  Main thread | show state: {:?} ", state);
+            info!("  Main | show state: {:?} ", state);
         })
         .await;
 
     info!("==========================================");
-    info!("  Main thread | Finish");
+    info!("  Main | Finish");
 }
 
 fn heavy_computation_cancellable(cancellation_token: CancellationToken) -> Result<u64, String> {
