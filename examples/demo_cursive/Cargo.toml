@@ -1,0 +1,16 @@
+[package]
+name = "demo_cursive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+easerx = { path = "../../easerx" }
+tokio = { workspace = true, features = ["full"] }
+futures-signals = { workspace = true }
+futures = { workspace = true }
+cursive = { version = "0.21", default-features = false, features = ["crossterm-backend"] }
+#cursive_core = "0.4"
+cursive-spinner-view = { version = "0.1" }
+
+[lints]
+workspace = true 

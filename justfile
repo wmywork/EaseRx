@@ -88,3 +88,7 @@ todo:
 # demo ratatui
 ratatui:
     cargo run -p demo_ratatui
+
+# demo cursive
+cursive:
+    cargo run -p demo_cursive

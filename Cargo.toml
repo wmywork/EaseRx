@@ -26,6 +26,7 @@ members = [
     "examples/extended10_execution_without_blocking",
     "examples/demo_simple_todo",
     "examples/demo_ratatui",
+    "examples/demo_cursive",
 ]
 
 [workspace.dependencies]
