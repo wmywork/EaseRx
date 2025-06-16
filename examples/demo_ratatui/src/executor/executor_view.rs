@@ -29,8 +29,14 @@ pub fn executor_view<'a>(executor_state: &ExecutorState) -> Paragraph<'a> {
 
     let num_calc_text = Line::from(spans);
 
+    let status = if executor_state.async_num.is_loading() {
+        "[Executing]"
+    } else {
+        ""
+    };
+
     Paragraph::new(num_calc_text)
-        .block(Block::default().title("Executor").borders(Borders::ALL))
+        .block(Block::default().title(format!("Executor {}", status)).borders(Borders::ALL))
         .style(Style::default().fg(Color::Yellow))
         .alignment(Alignment::Center)
 }
