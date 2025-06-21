@@ -2,7 +2,7 @@ use crate::counter::counter_model::CounterModel;
 use crate::counter::counter_view::{counter_view, update_counter};
 use crate::executor::executor_model::ExecutorModel;
 use crate::executor::executor_view::{executor_view, update_executor};
-use crate::input::input_handler::InputHandler;
+use crate::input::input_handler::{setup_event_handler, InputHandler};
 use crate::progress::progress_model::ProgressModel;
 use crate::progress::progress_view::{progress_view, update_progress};
 use cursive::theme::{BorderStyle, Palette, Theme};
@@ -12,7 +12,6 @@ use easerx::combine_state_flow;
 use futures::StreamExt;
 use futures_signals::map_ref;
 use futures_signals::signal::SignalExt;
-use input::input_handler;
 use std::sync::Arc;
 
 mod counter;
@@ -29,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor_model = Arc::new(ExecutorModel::new());
     let input_handler = Arc::new(InputHandler::new());
 
-    input_handler::setup_event_handler(
+    setup_event_handler(
         &mut siv,
         progress_model.clone(),
         counter_model.clone(),
@@ -37,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         input_handler.clone(),
     );
 
-    ui_view(&mut siv);
+    main_view(&mut siv);
 
     let cb = siv.cb_sink().clone();
 
@@ -64,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn ui_view(siv: &mut Cursive) {
+pub fn main_view(siv: &mut Cursive) {
     // Set custom theme
     siv.set_theme(Theme {
         shadow: false,
