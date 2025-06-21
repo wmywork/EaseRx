@@ -188,8 +188,7 @@ async fn test_execute_with_retain_success() {
     let state_vec = state_vec
         .read()
         .unwrap()
-        .iter()
-        .map(|x| x.clone())
+        .iter().cloned()
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
@@ -228,8 +227,7 @@ async fn test_execute_with_retain_fail() {
     let state_vec = state_vec
         .read()
         .unwrap()
-        .iter()
-        .map(|x| x.clone())
+        .iter().cloned()
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
@@ -371,8 +369,7 @@ async fn test_execute_cancellable_with_retain_success() {
     let state_vec = state_vec
         .read()
         .unwrap()
-        .iter()
-        .map(|x| x.clone())
+        .iter().cloned()
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
@@ -415,8 +412,7 @@ async fn test_execute_cancellable_with_retain_fail() {
     let state_vec = state_vec
         .read()
         .unwrap()
-        .iter()
-        .map(|x| x.clone())
+        .iter().cloned()
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));
@@ -465,8 +461,7 @@ async fn test_execute_cancellable_with_retain_cancel() {
     let state_vec = state_vec
         .read()
         .unwrap()
-        .iter()
-        .map(|x| x.clone())
+        .iter().cloned()
         .collect::<Vec<_>>();
 
     assert_eq!(state_vec[0], Async::success("initial".to_string()));

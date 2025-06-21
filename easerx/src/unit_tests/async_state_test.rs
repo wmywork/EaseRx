@@ -303,32 +303,32 @@ fn test_error_state_helpers() {
 fn test_value_ref_clone_from_async_ref() {
     // Test with Success
     let success = Async::success(42);
-    let option: Option<i32> = (&success).value_ref_clone();
+    let option: Option<i32> = success.value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Loading
     let loading = Async::loading(Some(42));
-    let option: Option<i32> = (&loading).value_ref_clone();
+    let option: Option<i32> = loading.value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Loading (None)
     let loading = Async::loading(None::<i32>);
-    let option: Option<i32> = (&loading).value_ref_clone();
+    let option: Option<i32> = loading.value_ref_clone();
     assert_eq!(option, None);
 
     // Test with Fail (with value)
     let fail = Async::fail(AsyncError::error("error"), Some(42));
-    let option: Option<i32> = (&fail).value_ref_clone();
+    let option: Option<i32> = fail.value_ref_clone();
     assert_eq!(option, Some(42));
 
     // Test with Fail (without value)
     let fail = Async::fail(AsyncError::error("error"), None::<i32>);
-    let option: Option<i32> = (&fail).value_ref_clone();
+    let option: Option<i32> = fail.value_ref_clone();
     assert_eq!(option, None);
 
     // Test with Uninitialized
     let uninitialized = Async::<i32>::Uninitialized;
-    let option: Option<i32> = (&uninitialized).value_ref_clone();
+    let option: Option<i32> = uninitialized.value_ref_clone();
     assert_eq!(option, None);
 }
 
