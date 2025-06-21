@@ -7,7 +7,7 @@ use crate::progress::progress_view::progress_view;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn app_view(
+pub fn main_view(
     frame: &mut ratatui::Frame,
     progress_state: &ProgressState,
     counter_state: &CounterState,

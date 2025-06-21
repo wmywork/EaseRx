@@ -1,7 +1,7 @@
 use crate::counter::counter_model::CounterViewModel;
 use crate::executor::executor_model::ExecutorModel;
 use crate::input::input_handler::{start_input_listener, InputHandler};
-use crate::main_view::app_view;
+use crate::main_view::main_view;
 use crate::progress::progress_model::ProgressViewModel;
 use easerx::combine_state_flow;
 use futures::StreamExt;
@@ -72,7 +72,7 @@ impl MainRunner {
             }
 
             terminal.draw(|frame| {
-                app_view(frame, &progress_state, &counter_state, &executor_state);
+                main_view(frame, &progress_state, &counter_state, &executor_state);
             })?;
         }
 
