@@ -81,7 +81,7 @@ async fn heavy_computation() -> u64 {
         if i % 50_000_000 == 0 {
             tokio::task::yield_now().await;
         }
-        i = i + 1;
+        i += 1;
     }
     i
 }

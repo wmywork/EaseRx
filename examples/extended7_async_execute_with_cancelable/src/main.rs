@@ -116,7 +116,7 @@ async fn async_heavy_computation() -> u64 {
         if i % 50_000_000 == 0 {
             tokio::task::yield_now().await;
         }
-        i = i + 1;
+        i += 1;
     }
     i
 }
@@ -134,7 +134,7 @@ async fn async_heavy_computation_cancellable(
             }
             tokio::task::yield_now().await;
         }
-        i = i + 1;
+        i += 1;
     }
     Ok(i)
 }

@@ -113,7 +113,7 @@ async fn main() {
 fn heavy_computation() -> u64 {
     let mut i: u64 = 0;
     for _ in 0..100_000_000 {
-        i = i + 1;
+        i += 1;
     }
     i
 }
@@ -126,7 +126,7 @@ fn heavy_computation_cancellable(cancellation_token: CancellationToken) -> Resul
             debug!("Cancellation detected, terminating computation");
             return Err("Computation was cancelled".to_string());
         }
-        i = i + 1;
+        i += 1;
     }
     Ok(i)
 }

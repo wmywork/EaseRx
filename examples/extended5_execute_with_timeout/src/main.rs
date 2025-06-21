@@ -28,7 +28,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(100)).await;
         store_clone.execute_with_timeout(
-            || heavy_computation(),
+            heavy_computation,
             Duration::from_millis(2000),
             |state, num| {
                 debug!("Worker | update num: {:?}", num);
@@ -55,7 +55,7 @@ async fn main() {
     tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
         store_clone.execute_with_timeout(
-            || heavy_computation(),
+            heavy_computation,
             Duration::from_millis(10),
             |state, num| {
                 debug!("Worker | update num: {:?}", num);
@@ -79,7 +79,7 @@ async fn main() {
 fn heavy_computation() -> u64 {
     let mut i: u64 = 0;
     for _ in 0..100_000_000 {
-        i = i + 1;
+        i += 1;
     }
     i
 }

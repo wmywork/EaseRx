@@ -40,7 +40,7 @@ async fn main() {
     let store_clone = store.clone();
     tokio::spawn(async move {
         store_clone.execute(
-            || heavy_computation(),
+            heavy_computation,
             |state, num| {
                 debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
@@ -94,7 +94,7 @@ async fn main() {
 fn heavy_computation() -> u64 {
     let mut i: u64 = 0;
     for _ in 0..400_000_000 {
-        i = i + 1;
+        i += 1;
     }
     debug!("Main thread | heavy_computation done");
     i

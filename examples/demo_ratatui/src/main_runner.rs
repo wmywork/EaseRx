@@ -19,6 +19,12 @@ pub struct MainRunner {
     input_handler: Arc<InputHandler>,
 }
 
+impl Default for MainRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MainRunner {
     pub fn new() -> Self {
         let progress_model = ProgressViewModel::new();

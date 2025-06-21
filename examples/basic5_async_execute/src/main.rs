@@ -144,7 +144,7 @@ async fn heavy_computation() -> u64 {
         if i % 50_000_000 == 0 {
             tokio::task::yield_now().await;
         }
-        i = i + 1;
+        i += 1;
     }
     i
 }
@@ -158,7 +158,7 @@ async fn heavy_computation_result(fail: bool) -> Result<u64, String> {
         if i % 10_000_000 == 0 && fail {
             return Err("Computation was cancelled".to_string());
         }
-        i = i + 1;
+        i += 1;
     }
     Ok(i)
 }
@@ -172,7 +172,7 @@ async fn heavy_computation_option(none: bool) -> Option<u64> {
         if i % 10_000_000 == 0 && none {
             return None;
         }
-        i = i + 1;
+        i += 1;
     }
     Some(i)
 }

@@ -148,7 +148,7 @@ async fn heavy_computation_cancellable(
             debug!("check Cancelled is true and return");
             return Err("Computation was cancelled".to_string());
         }
-        i = i + 1;
+        i += 1;
     }
     Ok(i)
 }
