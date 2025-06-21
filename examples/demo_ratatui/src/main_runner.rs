@@ -62,20 +62,18 @@ impl MainRunner {
         }
         .to_stream();
 
-        loop {
-            if let Some((progress_state, counter_state, executor_state, input_state)) =
-                state_flow.next().await
-            {
-                if input_state.exit {
-                    self.counter_model.request_exit();
-                    self.executor_model.request_exit();
-                    break;
-                }
-
-                terminal.draw(|frame| {
-                    app_view(frame, &progress_state, &counter_state, &executor_state);
-                })?;
+        while let Some((progress_state, counter_state, executor_state, input_state)) =
+            state_flow.next().await
+        {
+            if input_state.exit {
+                self.counter_model.request_exit();
+                self.executor_model.request_exit();
+                break;
             }
+
+            terminal.draw(|frame| {
+                app_view(frame, &progress_state, &counter_state, &executor_state);
+            })?;
         }
 
         Ok(())
