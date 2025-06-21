@@ -45,7 +45,7 @@ async fn main() {
                 debug!("Worker | update num: {:?}", num);
                 Counter { num, ..state }
             },
-        )
+        );
     });
 
     for handle in handles {
@@ -79,7 +79,7 @@ async fn main() {
         store_clone.async_execute(async { heavy_computation() }, |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
 
     for handle in handles {

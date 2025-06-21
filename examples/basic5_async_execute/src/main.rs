@@ -30,7 +30,7 @@ async fn main() {
         store_clone.async_execute(heavy_computation(), |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
     let state_flow = store.to_signal();
     state_flow
@@ -53,7 +53,7 @@ async fn main() {
         store_clone.async_execute(heavy_computation_result(false), |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
     let state_flow = store.to_signal();
     state_flow
@@ -76,7 +76,7 @@ async fn main() {
         store_clone.async_execute(heavy_computation_result(true), |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
     let state_flow = store.to_signal();
     state_flow
@@ -99,7 +99,7 @@ async fn main() {
         store_clone.async_execute(heavy_computation_option(false), |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
     let state_flow = store.to_signal();
     state_flow
@@ -122,7 +122,7 @@ async fn main() {
         store_clone.async_execute(heavy_computation_option(true), |state, num| {
             debug!("Worker | update num: {:?}", num);
             Counter { num, ..state }
-        })
+        });
     });
     let state_flow = store.to_signal();
     state_flow

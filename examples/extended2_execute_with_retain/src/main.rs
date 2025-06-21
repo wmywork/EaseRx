@@ -35,7 +35,7 @@ async fn main() {
                 debug!("Worker | Updated num: {:?}", num);
                 Counter { num, ..state }
             },
-        )
+        );
     });
 
     let state_flow = store.to_signal();
