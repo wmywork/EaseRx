@@ -1,6 +1,6 @@
 use crate::tracing_setup::tracing_init;
 use easerx::AsyncError;
-use easerx::{State, StateStore, combine_state_flow};
+use easerx::{combine_state_flow, State, StateStore};
 use futures::StreamExt;
 use futures_signals::map_ref;
 use futures_signals::signal::SignalExt;
@@ -59,10 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     state_flow
         .stop_if(|(state1, state2)| state1.count >= 11 && state2.count >= 12)
         .for_each(|(state1, state2)| async move {
-            info!(
-                "  Main | state1: {:?} , state2: {:?}",
-                state1, state2
-            );
+            info!("  Main | state1: {:?} , state2: {:?}", state1, state2);
         })
         .await;
 
@@ -86,16 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let mut state_stream = combine_state_flow!(store1.to_signal(), store2.to_signal()).to_stream();
-    loop {
-        if let Some((state1, state2)) = state_stream.next().await {
-            debug!(
-                "Worker | state1: {:?} , state2: {:?}",
-                state1, state2
-            );
-            if state1.count >= 111 && state2.count >= 112 {
-                break;
-            }
-        } else {
+
+    while let Some((state1, state2)) = state_stream.next().await {
+        debug!("Worker | state1: {:?} , state2: {:?}", state1, state2);
+        if state1.count >= 111 && state2.count >= 112 {
             break;
         }
     }
