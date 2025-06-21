@@ -21,6 +21,9 @@ _doc:
 _cov:
     cargo llvm-cov -p easerx --html
 
+_clippy:
+    cargo clippy -p easerx
+
 # basic1 state store
 b1:
     cargo run -p basic1_state_store

@@ -127,11 +127,11 @@ impl<T: Clone> Async<T> {
     /// Similar to `value()` but returns a reference instead of consuming the `Async`.
     pub fn value_ref(&self) -> Option<&T> {
         match self {
-            Async::Loading { value: Some(value) } => Some(&value),
-            Async::Success { value } => Some(&value),
+            Async::Loading { value: Some(value) } => Some(value),
+            Async::Success { value } => Some(value),
             Async::Fail {
                 value: Some(value), ..
-            } => Some(&value),
+            } => Some(value),
             _ => None,
         }
     }

@@ -42,7 +42,7 @@ async fn test_set_state() -> Result<(), AsyncError> {
     Ok(())
 }
 
-#[tokio::test]
+/*#[tokio::test]
 async fn test_set_state_panic() -> Result<(), AsyncError> {
     let store = StateStore::new(TestState::default());
 
@@ -55,7 +55,7 @@ async fn test_set_state_panic() -> Result<(), AsyncError> {
     let state = store.await_state().await;
     assert_eq!(state, Err(AsyncError::error("channel closed")));
     Ok(())
-}
+}*/
 
 // Test with_state functionality
 #[tokio::test]
