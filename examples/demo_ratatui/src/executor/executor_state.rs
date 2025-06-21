@@ -1,7 +1,7 @@
 use easerx::{Async, State};
 use throbber_widgets_tui::ThrobberState;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ExecutorState {
     pub async_num: Async<u64>,
     pub repeated_clicks: bool,
@@ -11,7 +11,7 @@ pub struct ExecutorState {
 
 impl State for ExecutorState {}
 
-impl Default for ExecutorState {
+/*impl Default for ExecutorState {
     fn default() -> Self {
         Self {
             async_num: Default::default(),
@@ -20,7 +20,7 @@ impl Default for ExecutorState {
             exit: false,
         }
     }
-}
+}*/
 impl ExecutorState {
     pub fn on_tick(self) -> Self {
         let mut new_throbber_state = self.throbber_state.clone();

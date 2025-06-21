@@ -1,6 +1,6 @@
 use easerx::{Async, State};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct ExecutorState {
     pub async_num: Async<u64>,
     pub repeated_clicks: bool,
@@ -9,7 +9,7 @@ pub struct ExecutorState {
 
 impl State for ExecutorState {}
 
-impl Default for ExecutorState {
+/*impl Default for ExecutorState {
     fn default() -> Self {
         Self {
             async_num: Default::default(),
@@ -17,7 +17,7 @@ impl Default for ExecutorState {
             exit: false,
         }
     }
-}
+}*/
 
 impl ExecutorState {
     pub fn set_repeated_clicks(self, repeated: bool) -> Self {

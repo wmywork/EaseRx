@@ -25,12 +25,8 @@ impl ExecutorModel {
             if state.async_num.is_loading() {
                 //show repeated clicks and return
                 store_set._set_state(|state| state.set_repeated_clicks(true));
-                return;
             } else {
-                store_set.execute(
-                    || heavy_computation(),
-                    |state, num| state.set_async_num(num),
-                );
+                store_set.execute(heavy_computation, |state, num| state.set_async_num(num));
             }
         });
     }
@@ -43,7 +39,7 @@ impl ExecutorModel {
 fn heavy_computation() -> u64 {
     let mut i: u64 = 0;
     for _ in 0..400_000_000 {
-        i = i + 1;
+        i += 1;
     }
     i
 }

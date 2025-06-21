@@ -41,11 +41,7 @@ impl ProgressState {
 
     // Decrement progress by 1%
     pub fn decrement_progress(self) -> Self {
-        let progress = if self.progress > 1 {
-            self.progress - 1
-        } else {
-            0
-        };
+        let progress = self.progress.saturating_sub(1);
         Self { progress, ..self }
     }
 

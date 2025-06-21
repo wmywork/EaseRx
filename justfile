@@ -24,9 +24,14 @@ _cov:
 _clippy:
     cargo clippy -p easerx
 
-# run clippy fix
 _fix:
     cargo clippy -p easerx --fix
+
+_clippy_examples:
+    cargo clippy --workspace --exclude easerx
+
+_fix_examples:
+    cargo clippy --workspace --fix --exclude easerx
 
 # basic1 state store
 b1:

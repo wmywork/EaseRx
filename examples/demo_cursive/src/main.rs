@@ -30,14 +30,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_handler = Arc::new(InputHandler::new());
 
     input_handler::setup_event_handler(
-        &mut *siv,
+        &mut siv,
         progress_model.clone(),
         counter_model.clone(),
         executor_model.clone(),
         input_handler.clone(),
     );
 
-    ui_view(&mut *siv);
+    ui_view(&mut siv);
 
     let cb = siv.cb_sink().clone();
 
@@ -49,19 +49,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     .to_stream();
     tokio::spawn(async move {
-        loop {
-            if let Some((progress, counter, executor, input)) = state_flow.next().await {
-                if input.exit {
-                    break;
-                }
-                let _ = cb.send(Box::new(move |s: &mut Cursive| {
-                    update_progress(s, &progress);
-                    update_counter(s, &counter);
-                    update_executor(s, &executor);
-                }));
-            } else {
+        while let Some((progress, counter, executor, input)) = state_flow.next().await {
+            if input.exit {
                 break;
             }
+            let _ = cb.send(Box::new(move |s: &mut Cursive| {
+                update_progress(s, &progress);
+                update_counter(s, &counter);
+                update_executor(s, &executor);
+            }));
         }
     });
     siv.run();

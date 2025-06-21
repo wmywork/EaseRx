@@ -1,6 +1,6 @@
 use easerx::State;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct CounterState {
     pub count: i32,
     pub started: bool,
@@ -9,7 +9,7 @@ pub struct CounterState {
 
 impl State for CounterState {}
 
-impl Default for CounterState {
+/*impl Default for CounterState {
     fn default() -> Self {
         Self {
             count: 0,
@@ -17,7 +17,7 @@ impl Default for CounterState {
             exit: false,
         }
     }
-}
+}*/
 
 impl CounterState {
     // Increment counter by 1
@@ -50,4 +50,4 @@ impl CounterState {
     pub fn set_exit(self) -> Self {
         Self { exit: true, ..self }
     }
-} 
+}
