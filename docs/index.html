@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EaseRx Document</title>
+    <link rel="icon" href="_images/favicon.png" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    <meta name="keywords" content="rust,mvi,framework,reactive,tokio">
+    <meta name="description" content="EaseRx is a reactive Model-View-Intent (MVI) framework for Rust">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+    <style>
+        nav.app-nav li ul {
+            min-width: 100px;
+        }
+
+        #carbonads {
+            box-shadow: none !important;
+            width: auto !important;
+        }
+        .small-img {
+            width: 50px;
+            height: auto;
+        }
+        .medium-img {
+            width: 150px;
+            height: auto;
+        }
+        .half-width-img {
+            width: 50%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+<div id="app">Loading ...</div>
+<script src="//cdn.jsdelivr.net/npm/docsify-plugin-carbon@1"></script>
+<script>
+    var lang = location.hash.match(/#\/(en|zh-cn)\//);
+
+    if (lang) {
+        document.documentElement.setAttribute('lang', lang[1]);
+    }else{
+        document.documentElement.setAttribute('lang', 'en');
+    }
+
+    window.$docsify = {
+        repo: 'https://github.com/wmywork/EaseRx',
+        alias: {
+            '/.*/_navbar.md': '/_navbar.md',
+            '/en/(.*)': '/en/$1',
+            '/zh-cn/(.*)': '/zh-cn/$1',
+        },
+        relativePath: false,
+        coverpage: false,
+        auto2top: true,
+        loadSidebar: true,
+        loadNavbar: true,
+        mergeNavbar: true,
+        maxLevel: 1,
+        subMaxLevel: 0,
+        name: 'EaseRx',
+        nameLink: {
+          '/en/': '#/en/',
+          '/zh-cn/': '#/zh-cn/',
+          '/': '#/',
+        },
+        search: {
+          noData: {
+            '/en/': 'No results!',
+            '/zh-cn/': '没有结果!',
+            '/': 'No results!',
+          },
+          paths: 'auto',
+          placeholder: {
+            '/en/': 'Search',
+            '/zh-cn/': '搜索',
+            '/': 'Search',
+          },
+          pathNamespaces: ['/en', '/zh-cn'],
+        },
+        vueComponents: {
+            'button-counter': {
+                template:
+                    '<button @click="count += 1">You clicked me {{ count }} times</button>',
+                data: function () {
+                    return {
+                        count: 0,
+                    };
+                },
+            },
+        },
+        vueGlobalOptions: {
+            data: function () {
+                return {
+                    count: 0,
+                    message: 'Hello, World!',
+                    // Fake API response
+                    images: [
+                        { title: 'Image 1', url: 'https://picsum.photos/150?random=1' },
+                        { title: 'Image 2', url: 'https://picsum.photos/150?random=2' },
+                        { title: 'Image 3', url: 'https://picsum.photos/150?random=3' },
+                    ],
+                };
+            },
+            computed: {
+                timeOfDay: function () {
+                    const date = new Date();
+                    const hours = date.getHours();
+
+                    if (hours < 12) {
+                        return 'morning';
+                    } else if (hours < 18) {
+                        return 'afternoon';
+                    } else {
+                        return 'evening';
+                    }
+                },
+            },
+            methods: {
+                hello: function () {
+                    alert(this.message);
+                },
+            },
+        },
+        vueMounts: {
+            '#counter': {
+                data: function () {
+                    return {
+                        count: 0,
+                    };
+                },
+            },
+        },
+    }
+</script>
+<!-- Docsify v4 -->
+<script src="//cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-rust.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/vue@2/dist/vue.min.js"></script>
+</body>
+</html>
