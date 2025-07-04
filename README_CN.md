@@ -8,7 +8,7 @@ EaseRx是一个Rust语言的响应式MVI (Model-View-Intent) 框架，旨在降�
 
 ## [English README](README.md)
 
-## [文档](https://wmywork.github.io/easerx)
+## [文档](https://wmywork.github.io/EaseRx/)
 
 ## 项目概述
 

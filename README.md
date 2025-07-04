@@ -9,7 +9,7 @@ management solution.
 
 ## [中文README](README_CN.md)
 
-## [Documentation](https://wmywork.github.io/easerx)
+## [Documentation](https://wmywork.github.io/EaseRx/)
 
 ## Project Overview
 
