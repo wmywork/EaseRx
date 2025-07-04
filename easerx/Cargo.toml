@@ -10,7 +10,7 @@ repository = "https://github.com/wmywork/EaseRx"
 homepage = "https://wmywork.github.io/EaseRx/"
 keywords = ["mvi", "framework", "reactive", "ease", "rx"]
 categories = ["asynchronous", "concurrency"]
-readme = "README.md"
+readme = "../README.md"
 
 [dependencies]
 tokio = { workspace = true, features = ["sync", "rt", "macros", "time"] }
