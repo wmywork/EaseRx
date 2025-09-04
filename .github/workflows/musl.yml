@@ -1,0 +1,70 @@
+name: musl
+
+on:
+  workflow_dispatch:
+
+jobs:
+  musl-cross-build:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ver:
+          - {  musl: 14.2.0 }
+        arch:
+          - { target: aarch64-unknown-linux-musl, musl: aarch64-linux-musl }
+          - { target: x86_64-unknown-linux-musl, musl: x86_64-linux-musl }
+
+    name: ${{ matrix.arch.musl }}
+
+    env:
+      MUSL_NAME: ${{ matrix.arch.musl }}-${{ matrix.ver.musl }}
+      PKG_NAME: ${{github.ref_name}}-${{ matrix.arch.musl }}
+
+    steps:
+      # 检出代码
+      - uses: actions/checkout@v5
+
+      # 部署musl
+      - name: deploy musl gcc
+        run: |
+          wget https://github.com/benjaminwan/musl-cross-builder/releases/download/${{ matrix.ver.musl }}/${{ env.MUSL_NAME }}.7z -O ${{ matrix.arch.musl }}.7z
+          7z x ${{ matrix.arch.musl }}.7z -aoa
+          mv ${{ matrix.arch.musl }}/ /opt/
+          echo "/opt/${{ matrix.arch.musl }}/bin" >> $GITHUB_PATH
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "15.0"
+
+      - name: Host rustup target add
+        run: |
+          rustup target add ${{ matrix.arch.target }}
+
+      # 编译
+      - name: build
+        run: |
+          cargo build --target ${{ matrix.arch.target }} -p demo_ratatui
+          cargo build --target ${{ matrix.arch.target }} -p demo_cursive
+          cargo build --target ${{ matrix.arch.target }} -p demo_simple_todo
+
+      # 7z压缩
+      - name: 7zip
+        run: |
+          7z a demo_ratatui-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_ratatui
+          7z a demo_cursive-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_cursive
+          7z a demo_simple_todo-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_simple_todo
+
+      # 创建release 上传release
+      # https://github.com/marketplace/actions/create-release
+      - name: Create release and upload-archive
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: true
+          bodyFile: release.md
+          artifacts: 'demo_*.7z'
+          allowUpdates: true
+          artifactContentType: application/x-7z-compressed
+          token: ${{ secrets.GITHUB_TOKEN }}

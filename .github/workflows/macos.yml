@@ -1,0 +1,65 @@
+name: macos
+
+on:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        ver:
+          - { cv: 4.10.0, onnx: 1.21.1 }
+        list:
+          - { os_ver: 12 }
+          - { os_ver: 13 }
+          - { os_ver: 14 }
+        arch:
+          - { target: x86_64-apple-darwin, short: x86_64 }
+          - { target: aarch64-apple-darwin, short: arm64 }
+        exclude:
+          - list: { os_ver: 12 }
+          - list: { os_ver: 14 }
+
+    runs-on: macos-${{ matrix.list.os_ver }}
+    name: macos-${{ matrix.list.os_ver }}-${{ matrix.arch.short }}
+
+    env:
+      PKG_NAME: ${{github.ref_name}}-macos-${{ matrix.arch.short }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Host rustup target add
+        run: |
+          rustup target add ${{ matrix.arch.target }}
+
+      - name: set env
+        run: |
+          echo "$(brew --prefix llvm@15)/bin" >>$GITHUB_PATH
+
+      # 编译
+      - name: build
+        run: |
+          cargo build --target ${{ matrix.arch.target }} -p demo_ratatui
+          cargo build --target ${{ matrix.arch.target }} -p demo_cursive
+          cargo build --target ${{ matrix.arch.target }} -p demo_simple_todo
+
+      # 7z压缩
+      - name: 7zip
+        run: |
+          7z a demo_ratatui-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_ratatui
+          7z a demo_cursive-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_cursive
+          7z a demo_simple_todo-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_simple_todo
+
+      # 创建release 上传release
+      # https://github.com/marketplace/actions/create-release
+      - name: Create release and upload-archive
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: true
+          bodyFile: release.md
+          artifacts: 'demo_*.7z'
+          allowUpdates: true
+          artifactContentType: application/x-7z-compressed
+          token: ${{ secrets.GITHUB_TOKEN }}

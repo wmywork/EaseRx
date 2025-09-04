@@ -104,3 +104,33 @@ ratatui:
 # demo cursive
 cursive:
     cargo run -p demo_cursive
+
+# build demo for windows
+build_demo_windows:
+    cargo build --target i686-pc-windows-msvc -p demo_ratatui
+    cargo build --target x86_64-pc-windows-msvc -p demo_ratatui
+    cargo build --target aarch64-pc-windows-msvc -p demo_ratatui
+    cargo build --target i686-pc-windows-msvc -p demo_cursive
+    cargo build --target x86_64-pc-windows-msvc -p demo_cursive
+    cargo build --target aarch64-pc-windows-msvc -p demo_cursive
+    cargo build --target i686-pc-windows-msvc -p demo_simple_todo
+    cargo build --target x86_64-pc-windows-msvc -p demo_simple_todo
+    cargo build --target aarch64-pc-windows-msvc -p demo_simple_todo
+
+# build demo for linux musl
+build_demo_linux_musl:
+    cargo build --target aarch64-unknown-linux-musl -p demo_ratatui
+    cargo build --target x86_64-unknown-linux-musl -p demo_ratatui
+    cargo build --target aarch64-unknown-linux-musl -p demo_cursive
+    cargo build --target x86_64-unknown-linux-musl -p demo_cursive
+    cargo build --target aarch64-unknown-linux-musl -p demo_simple_todo
+    cargo build --target x86_64-unknown-linux-musl -p demo_simple_todo
+
+# build demo for macOS
+build_demo_macos:
+    cargo build --target x86_64-apple-darwin -p demo_ratatui
+    cargo build --target aarch64-apple-darwin -p demo_ratatui
+    cargo build --target x86_64-apple-darwin -p demo_cursive
+    cargo build --target aarch64-apple-darwin -p demo_cursive
+    cargo build --target x86_64-apple-darwin -p demo_simple_todo
+    cargo build --target aarch64-apple-darwin -p demo_simple_todo

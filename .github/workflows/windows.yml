@@ -1,0 +1,61 @@
+name: windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        list:
+          - { win_ver: 2019, vs_name: vs2015, vs_ver: v140 }
+          - { win_ver: 2019, vs_name: vs2017, vs_ver: v141 }
+          - { win_ver: 2019, vs_name: vs2019, vs_ver: v142 }
+          - { win_ver: 2022, vs_name: vs2022, vs_ver: v143 }
+        arch:
+          - { target: aarch64-pc-windows-msvc, short: arm64 }
+          - { target: i686-pc-windows-msvc, short: x86 }
+          - { target: x86_64-pc-windows-msvc, short: x64 }
+        exclude:
+          - list: { win_ver: 2019, vs_name: vs2015, vs_ver: v140 }
+          - list: { win_ver: 2019, vs_name: vs2017, vs_ver: v141 }
+          - list: { win_ver: 2019, vs_name: vs2019, vs_ver: v142 }
+
+    runs-on: windows-${{ matrix.list.win_ver }}
+
+    name: windows-${{ matrix.arch.short }}
+
+    env:
+      PKG_NAME: ${{github.ref_name}}-windows-${{ matrix.arch.short }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Host rustup target add
+        run: |
+          rustup target add ${{ matrix.arch.target }}
+
+      - name: build
+        run: |
+          cargo build --target ${{ matrix.arch.target }} -p demo_ratatui
+          cargo build --target ${{ matrix.arch.target }} -p demo_cursive
+          cargo build --target ${{ matrix.arch.target }} -p demo_simple_todo
+
+      - name: 7zip
+        run: |
+          7z a demo_ratatui-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_ratatui.exe
+          7z a demo_cursive-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_cursive.exe
+          7z a demo_simple_todo-${{ env.PKG_NAME }}.7z ./target/${{ matrix.arch.target }}/debug/demo_simple_todo.exe
+
+      # 创建release 上传release
+      # https://github.com/marketplace/actions/create-release
+      - name: upload-windows
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: true
+          bodyFile: release.md
+          artifacts: 'demo_*.7z'
+          allowUpdates: true
+          artifactContentType: application/x-7z-compressed
+          token: ${{ secrets.GITHUB_TOKEN }}
